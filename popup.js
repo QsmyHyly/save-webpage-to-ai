@@ -2,8 +2,9 @@
 // 负责管理已保存的页面列表，支持保存、删除、上传到 DeepSeek
 
 let allPages = [];
-let isDeepSeekPage = false;
+let isTargetPage = false;
 let currentTab = null;
+let currentPlatform = ''; // 'deepseek' | 'qianwen' | ''
 
 // 格式化文件大小
 function formatSize(bytes) {
@@ -18,10 +19,34 @@ async function getCurrentTab() {
   return tab;
 }
 
-// 检查当前标签页是否为 DeepSeek 官网
-async function checkDeepSeekStatus() {
+// 检查当前标签页是否为支持的 AI 平台
+async function checkPlatformStatus() {
   currentTab = await getCurrentTab();
-  isDeepSeekPage = currentTab && currentTab.url && currentTab.url.startsWith('https://chat.deepseek.com/');
+
+  if (!currentTab || !currentTab.url) {
+    isTargetPage = false;
+    currentPlatform = '';
+    updateStatusUI();
+    return;
+  }
+
+  const url = currentTab.url;
+
+  // 检查 DeepSeek
+  if (url.startsWith('https://chat.deepseek.com/')) {
+    isTargetPage = true;
+    currentPlatform = 'deepseek';
+  }
+  // 检查通义千问
+  else if (url.includes('qianwen.com') || url.includes('qwen.ai')) {
+    isTargetPage = true;
+    currentPlatform = 'qianwen';
+  }
+  else {
+    isTargetPage = false;
+    currentPlatform = '';
+  }
+
   updateStatusUI();
 }
 
@@ -31,16 +56,19 @@ function updateStatusUI() {
   const statusText = document.getElementById('statusText');
   const uploadBtn = document.getElementById('uploadSelectedBtn');
 
-  if (isDeepSeekPage) {
+  if (isTargetPage) {
     indicator.classList.add('active');
-    statusText.textContent = '✅ 当前在 DeepSeek 页面，可以上传';
+    const platformName = currentPlatform === 'deepseek' ? 'DeepSeek' : '通义千问';
+    statusText.textContent = `✅ 当前在 ${platformName} 页面，可以上传`;
     uploadBtn.disabled = false;
     uploadBtn.title = '';
+    uploadBtn.textContent = `📤 上传到 ${platformName}`;
   } else {
     indicator.classList.remove('active');
-    statusText.textContent = '⚠️ 请在 DeepSeek 官网 (chat.deepseek.com) 使用上传功能';
+    statusText.textContent = '⚠️ 请在 DeepSeek 或通义千问官网使用上传功能';
     uploadBtn.disabled = true;
-    uploadBtn.title = '请在 DeepSeek 官网使用此功能';
+    uploadBtn.title = '请在支持的 AI 平台使用此功能';
+    uploadBtn.textContent = '📤 上传';
   }
 }
 
@@ -205,7 +233,7 @@ async function deleteSelected() {
   await loadPages();
 }
 
-// 上传选中的页面到 DeepSeek
+// 上传选中的页面到当前 AI 平台
 async function uploadSelected() {
   const selected = getSelectedPages();
   if (selected.length === 0) {
@@ -213,8 +241,8 @@ async function uploadSelected() {
     return;
   }
 
-  if (!isDeepSeekPage || !currentTab) {
-    alert('请在 DeepSeek 官网页面使用此功能');
+  if (!isTargetPage || !currentTab) {
+    alert('请在 DeepSeek 或通义千问官网页面使用此功能');
     return;
   }
 
@@ -225,17 +253,18 @@ async function uploadSelected() {
   overlay.classList.add('active');
 
   try {
-    // 向 DeepSeek 页面内容脚本发送消息
+    // 向当前 AI 页面内容脚本发送消息
     chrome.tabs.sendMessage(currentTab.id, {
       type: 'UPLOAD_PAGES',
       pages: selected.map(p => ({ html: p.html, title: p.title }))
     }, (response) => {
       overlay.classList.remove('active');
 
+      const platformName = currentPlatform === 'deepseek' ? 'DeepSeek' : '通义千问';
       if (response && response.status === 'ok') {
-        alert(`✅ 成功上传 ${response.count} 个页面到 DeepSeek！`);
+        alert(`✅ 成功上传 ${response.count} 个页面到 ${platformName}！`);
       } else {
-        alert('❌ 上传失败，请确保 DeepSeek 页面已加载完成');
+        alert(`❌ 上传失败，请确保 ${platformName} 页面已加载完成`);
       }
     });
 
@@ -270,8 +299,8 @@ function deselectAll() {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', async () => {
-  // 检查 DeepSeek 状态
-  await checkDeepSeekStatus();
+  // 检查平台状态
+  await checkPlatformStatus();
 
   // 加载页面列表
   await loadPages();

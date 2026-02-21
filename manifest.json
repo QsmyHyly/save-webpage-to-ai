@@ -1,21 +1,23 @@
 {
   "manifest_version": 3,
-  "name": "DeepSeek Page Manager",
-  "version": "2.0",
-  "description": "保存任意网页HTML并在DeepSeek中批量上传分析",
+  "name": "AI Page Manager",
+  "version": "2.1",
+  "description": "保存任意网页HTML并在DeepSeek、通义千问等AI平台批量上传分析",
   "permissions": [
     "activeTab",
     "scripting",
     "storage"
   ],
   "host_permissions": [
-    "https://chat.deepseek.com/*"
+    "https://chat.deepseek.com/*",
+    "https://*.qianwen.com/*",
+    "https://*.qwen.ai/*"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "DeepSeek 页面管理器",
+    "default_title": "AI 页面管理器",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
@@ -27,6 +29,14 @@
     {
       "matches": ["https://chat.deepseek.com/*"],
       "js": ["deepseek-content.js"],
+      "run_at": "document_end"
+    },
+    {
+      "matches": [
+        "https://*.qianwen.com/*",
+        "https://*.qwen.ai/*"
+      ],
+      "js": ["qianwen-uploader.js"],
       "run_at": "document_end"
     }
   ],
