@@ -271,7 +271,13 @@ async function uploadSelected() {
     // 向当前 AI 页面内容脚本发送消息
     chrome.tabs.sendMessage(currentTab.id, {
       type: 'UPLOAD_PAGES',
-      pages: selected.map(p => ({ html: p.html, title: p.title }))
+      pages: selected.map(p => ({
+        html: p.html,
+        title: p.title,
+        url: p.url,
+        savedAt: p.savedAt,
+        size: p.size
+      }))
     }, (response) => {
       overlay.classList.remove('active');
 

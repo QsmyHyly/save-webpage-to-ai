@@ -12,6 +12,17 @@
 
   console.log('通义千问上传器已加载');
 
+  /**
+   * 将元数据以 HTML 注释形式添加到原始 HTML 内容最前面
+   * @param {string} originalHtml - 原始 HTML 内容
+   * @param {Object} metadata - 元数据对象
+   * @returns {string} 包装后的 HTML
+   */
+  function wrapHtmlWithMetadata(originalHtml, metadata) {
+    const metaComment = `<!--\n  PageMetadata: ${JSON.stringify(metadata, null, 2)}\n-->`;
+    return metaComment + '\n' + originalHtml;
+  }
+
   // 查找输入框（可拖拽目标）
   function findInputBox() {
     const selectors = [
@@ -162,8 +173,21 @@
         for (let i = 0; i < pages.length; i++) {
           const page = pages[i];
           const fileName = `${page.title.replace(/[\\/:*?"<>|]/g, '_')}.html`;
+
+          // 构造元数据对象
+          const metadata = {
+            url: page.url,
+            title: page.title,
+            savedAt: new Date(page.savedAt).toISOString(),
+            originalSize: page.size,
+            capturedFrom: '保存网页并发送给deepseek或千问'
+          };
+
+          // 包装 HTML
+          const wrappedHtml = wrapHtmlWithMetadata(page.html, metadata);
+
           try {
-            const success = await uploadFileAsHTML(page.html, fileName);
+            const success = await uploadFileAsHTML(wrappedHtml, fileName);
             if (success) {
               successCount++;
               // 等待文件处理（通义千问可能需要一点时间解析文件）
