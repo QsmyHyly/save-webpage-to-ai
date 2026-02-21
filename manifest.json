@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "AI Page Manager",
+  "name": "保存网页并发送给deepseek或千问",
   "version": "2.1",
   "description": "保存任意网页HTML并在DeepSeek、通义千问等AI平台批量上传分析",
   "permissions": [
@@ -17,7 +17,7 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "AI 页面管理器",
+    "default_title": "保存网页并发送给deepseek或千问",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
