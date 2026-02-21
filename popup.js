@@ -112,12 +112,27 @@ function renderList() {
         <button class="btn btn-danger delete-one" data-id="${page.id}">删除</button>
       </div>
     `;
+
+    // 为整个列表项添加点击事件（切换复选框）
+    div.addEventListener('click', (event) => {
+      // 如果点击的元素是复选框本身、删除按钮或它们的子元素，则忽略行点击
+      if (event.target.closest('.page-checkbox') || event.target.closest('.delete-one')) {
+        return;
+      }
+      // 切换当前行的复选框状态
+      const checkbox = div.querySelector('.page-checkbox');
+      if (checkbox) {
+        checkbox.checked = !checkbox.checked;
+      }
+    });
+
     container.appendChild(div);
   });
 
   // 绑定单个删除按钮
   document.querySelectorAll('.delete-one').forEach(btn => {
     btn.addEventListener('click', async (e) => {
+      e.stopPropagation(); // 防止事件冒泡到行点击
       const id = e.target.dataset.id;
       await deletePage(id);
     });
