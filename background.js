@@ -1,100 +1,161 @@
 // background.js - Service Worker
-// 负责处理扩展图标点击，动态向当前标签页注入侧边栏
+// 负责 IndexedDB 数据库管理和消息处理
 
-// 安装时设置 declarativeNetRequest 规则以允许 iframe 嵌入
-chrome.runtime.onInstalled.addListener(() => {
-  // 移除 X-Frame-Options 和 CSP 头，允许 DeepSeek 被嵌入 iframe
-  chrome.declarativeNetRequest.updateDynamicRules({
-    removeRuleIds: [1, 2, 3],
-    addRules: [
-      {
-        id: 1,
-        priority: 1,
-        action: {
-          type: 'modifyHeaders',
-          responseHeaders: [
-            { header: 'x-frame-options', operation: 'remove' },
-            { header: 'X-Frame-Options', operation: 'remove' }
-          ]
-        },
-        condition: {
-          urlFilter: '||chat.deepseek.com/*',
-          resourceTypes: ['sub_frame', 'main_frame']
-        }
-      },
-      {
-        id: 2,
-        priority: 1,
-        action: {
-          type: 'modifyHeaders',
-          responseHeaders: [
-            { header: 'content-security-policy', operation: 'remove' },
-            { header: 'Content-Security-Policy', operation: 'remove' }
-          ]
-        },
-        condition: {
-          urlFilter: '||chat.deepseek.com/*',
-          resourceTypes: ['sub_frame', 'main_frame']
-        }
-      },
-      {
-        id: 3,
-        priority: 1,
-        action: {
-          type: 'modifyHeaders',
-          responseHeaders: [
-            { header: 'content-security-policy', operation: 'remove' },
-            { header: 'Content-Security-Policy', operation: 'remove' },
-            { header: 'x-frame-options', operation: 'remove' },
-            { header: 'X-Frame-Options', operation: 'remove' },
-            // 添加一个空的 CSP，防止继承父页面的策略
-            { header: 'Content-Security-Policy', operation: 'set', value: 'frame-ancestors *;' }
-          ]
-        },
-        condition: {
-          urlFilter: '||chat.deepseek.com/*',
-          resourceTypes: ['sub_frame', 'main_frame']
-        }
+let db = null;
+const DB_NAME = 'PageCacheDB';
+const STORE_NAME = 'pages';
+const DB_VERSION = 1;
+
+// 初始化数据库
+function initDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onupgradeneeded = (e) => {
+      const database = e.target.result;
+      if (!database.objectStoreNames.contains(STORE_NAME)) {
+        const store = database.createObjectStore(STORE_NAME, { keyPath: 'id' });
+        store.createIndex('savedAt', 'savedAt', { unique: false });
+        store.createIndex('url', 'url', { unique: false });
       }
-    ]
+    };
+
+    request.onsuccess = (e) => {
+      db = e.target.result;
+      console.log('IndexedDB 初始化成功');
+      resolve(db);
+    };
+
+    request.onerror = (e) => {
+      console.error('IndexedDB 初始化失败:', e.target.error);
+      reject(e.target.error);
+    };
   });
-  console.log('DeepSeek Sidebar: 已安装，CSP规则已设置');
-});
+}
 
-// 处理扩展图标点击事件
-chrome.action.onClicked.addListener(async (tab) => {
-  if (!tab.id) return;
-
-  try {
-    // 尝试向当前标签页发送 ping 消息，检查侧边栏是否已存在
-    const response = await chrome.tabs.sendMessage(tab.id, { type: 'PING_SIDEBAR' });
-
-    if (response?.status === 'alive') {
-      // 已存在，切换显示/隐藏
-      chrome.tabs.sendMessage(tab.id, { type: 'TOGGLE_SIDEBAR' });
-    } else {
-      // 不存在，创建侧边栏
-      chrome.tabs.sendMessage(tab.id, { type: 'CREATE_SIDEBAR' });
-    }
-  } catch (error) {
-    // 未注入内容脚本，需要先注入
-    try {
-      await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        files: ['content.js']
-      });
-      // 注入成功后创建侧边栏
-      setTimeout(() => {
-        chrome.tabs.sendMessage(tab.id, { type: 'CREATE_SIDEBAR' });
-      }, 100);
-    } catch (injectError) {
-      console.error('注入内容脚本失败:', injectError);
-    }
+// 确保数据库已初始化
+async function ensureDB() {
+  if (!db) {
+    await initDB();
   }
+  return db;
+}
+
+// 获取所有页面
+async function getAllPages() {
+  const database = await ensureDB();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// 保存页面
+async function savePage(data) {
+  const database = await ensureDB();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+
+    // 生成唯一 ID
+    data.id = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    data.savedAt = Date.now();
+
+    const req = store.add(data);
+    req.onsuccess = () => resolve(data.id);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// 删除页面
+async function deletePage(id) {
+  const database = await ensureDB();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// 根据 URL 查找页面
+async function findPageByUrl(url) {
+  const database = await ensureDB();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    const index = store.index('url');
+    const req = index.getAll(url);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// 清空所有页面
+async function clearAllPages() {
+  const database = await ensureDB();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.clear();
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// 安装时初始化
+chrome.runtime.onInstalled.addListener(() => {
+  console.log('DeepSeek Page Manager 已安装');
+  initDB().catch(console.error);
 });
 
-// 监听来自内容脚本的消息（当前无额外处理）
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  // 扩展预留接口，当前无需处理
-  return false;
+// 监听消息
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  (async () => {
+    try {
+      switch (msg.type) {
+        case 'GET_ALL_PAGES':
+          const pages = await getAllPages();
+          sendResponse(pages);
+          break;
+
+        case 'SAVE_PAGE':
+          const id = await savePage(msg.data);
+          sendResponse({ status: 'ok', id });
+          break;
+
+        case 'DELETE_PAGE':
+          await deletePage(msg.id);
+          sendResponse({ status: 'ok' });
+          break;
+
+        case 'FIND_PAGE_BY_URL':
+          const found = await findPageByUrl(msg.url);
+          sendResponse(found);
+          break;
+
+        case 'CLEAR_ALL_PAGES':
+          await clearAllPages();
+          sendResponse({ status: 'ok' });
+          break;
+
+        default:
+          sendResponse({ status: 'error', message: '未知消息类型' });
+      }
+    } catch (error) {
+      console.error('处理消息失败:', error);
+      sendResponse({ status: 'error', message: error.message });
+    }
+  })();
+
+  return true; // 保持异步响应
+});
+
+// Service Worker 启动时初始化数据库
+self.addEventListener('activate', () => {
+  initDB().catch(console.error);
 });

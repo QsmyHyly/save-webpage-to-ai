@@ -1,12 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "DeepSeek Sidebar Assistant",
-  "version": "1.0",
-  "description": "在页面右侧打开侧边栏，内嵌DeepSeek并支持获取完整DOM树以文件形式发送",
+  "name": "DeepSeek Page Manager",
+  "version": "2.0",
+  "description": "保存任意网页HTML并在DeepSeek中批量上传分析",
   "permissions": [
     "activeTab",
     "scripting",
-    "declarativeNetRequest"
+    "storage"
   ],
   "host_permissions": [
     "https://chat.deepseek.com/*"
@@ -14,27 +14,22 @@
   "background": {
     "service_worker": "background.js"
   },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "run_at": "document_end"
-    },
-    {
-      "matches": ["https://chat.deepseek.com/*"],
-      "js": ["deepseek-content.js"],
-      "all_frames": true,
-      "run_at": "document_end"
-    }
-  ],
   "action": {
-    "default_title": "打开DeepSeek侧边栏",
+    "default_title": "DeepSeek 页面管理器",
+    "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     }
   },
+  "content_scripts": [
+    {
+      "matches": ["https://chat.deepseek.com/*"],
+      "js": ["deepseek-content.js"],
+      "run_at": "document_end"
+    }
+  ],
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
