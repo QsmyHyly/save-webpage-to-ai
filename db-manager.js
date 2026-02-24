@@ -40,12 +40,12 @@ class DBManager {
 
       request.onsuccess = (e) => {
         this.db = e.target.result;
-        console.log('IndexedDB 初始化成功');
+        self.logger.info('IndexedDB 初始化成功');
         resolve(this.db);
       };
 
       request.onerror = (e) => {
-        console.error('IndexedDB 初始化失败:', e.target.error);
+        self.logger.error('IndexedDB 初始化失败:', e.target.error);
         reject(e.target.error);
       };
     });

@@ -33,7 +33,7 @@ async function downloadPage(page) {
       saveAs: false
     });
   } catch (error) {
-    console.error('下载失败:', error);
+    logger.error('下载失败:', error);
     alert('下载失败: ' + error.message);
   }
 }
@@ -137,7 +137,7 @@ async function loadPages() {
     renderList();
     updatePageCount();
   } catch (error) {
-    console.error('加载页面列表失败:', error);
+    logger.error('加载页面列表失败:', error);
     showEmptyState('加载失败，请重试');
   }
 }
@@ -149,7 +149,7 @@ async function loadResources() {
     renderResourceList();
     updateResourceCount();
   } catch (error) {
-    console.error('加载资源列表失败:', error);
+    logger.error('加载资源列表失败:', error);
     showResourceEmptyState('加载失败，请重试');
   }
 }
@@ -302,7 +302,7 @@ async function deletePage(id) {
     await chrome.runtime.sendMessage({ type: 'DELETE_PAGE', id });
     await loadPages();
   } catch (error) {
-    console.error('删除页面失败:', error);
+    logger.error('删除页面失败:', error);
     alert('删除失败，请重试');
   }
 }
@@ -313,7 +313,7 @@ async function deleteResource(id) {
     await chrome.runtime.sendMessage({ type: 'DELETE_RESOURCE', id });
     await loadResources();
   } catch (error) {
-    console.error('删除资源失败:', error);
+    logger.error('删除资源失败:', error);
     alert('删除失败，请重试');
   }
 }
@@ -367,7 +367,7 @@ async function saveCurrentPage() {
 
     await loadPages();
   } catch (error) {
-    console.error('保存页面失败:', error);
+    logger.error('保存页面失败:', error);
     btn.textContent = '❌ 保存失败';
     setTimeout(() => {
       btn.disabled = false;
@@ -468,7 +468,7 @@ async function uploadSelected() {
 
   } catch (error) {
     overlay.classList.remove('active');
-    console.error('上传失败:', error);
+    logger.error('上传失败:', error);
     alert('上传失败: ' + error.message);
   }
 }
@@ -553,7 +553,7 @@ async function openResourcesManager() {
     
     chrome.tabs.create({ url: chrome.runtime.getURL('resources.html') });
   } catch (error) {
-    console.error('打开资源管理页面失败:', error);
+    logger.error('打开资源管理页面失败:', error);
     alert('打开资源管理页面失败: ' + error.message);
   }
 }

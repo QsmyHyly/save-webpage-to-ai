@@ -141,7 +141,7 @@ function findSendButton() {
     try {
       const btn = document.querySelector(selector);
       if (btn && isSendButton(btn)) {
-        console.log('找到发送按钮:', selector, btn);
+        logger.info('找到发送按钮:', selector, btn);
         return btn;
       }
     } catch (e) {
@@ -205,7 +205,7 @@ function findSendButtonFallback() {
   
   for (const btn of candidates) {
     if (isSendButton(btn)) {
-      console.log('后备方案找到发送按钮:', btn);
+      logger.info('后备方案找到发送按钮:', btn);
       return btn;
     }
   }
@@ -231,7 +231,7 @@ function findInputBox() {
   for (const selector of selectors) {
     const input = document.querySelector(selector);
     if (input) {
-      console.log('找到文件输入框:', selector, input);
+      logger.info('找到文件输入框:', selector, input);
       return input;
     }
   }
@@ -252,11 +252,11 @@ async function uploadFile(blob, fileName) {
   
   const inputBox = findInputBox();
   if (!inputBox) {
-    console.error('未找到文件输入框');
+    logger.error('未找到文件输入框');
     return false;
   }
   
-  console.log('设置文件:', fileName, '类型:', blob.type);
+  logger.info('设置文件:', fileName, '类型:', blob.type);
   
   inputBox.files = dataTransfer.files;
   
@@ -268,7 +268,7 @@ async function uploadFile(blob, fileName) {
   const inputEvent = new Event('input', { bubbles: true });
   inputBox.dispatchEvent(inputEvent);
   
-  console.log('文件上传事件已触发');
+  logger.info('文件上传事件已触发');
   return true;
 }
 
@@ -283,13 +283,13 @@ async function waitForSendButton(timeout = 5000) {
   while (Date.now() - start < timeout) {
     const sendBtn = findSendButton();
     if (sendBtn && isSendButton(sendBtn)) {
-      console.log('发送按钮已可用');
+      logger.info('发送按钮已可用');
       return sendBtn;
     }
     await new Promise(r => setTimeout(r, 200));
   }
   
-  console.log('等待发送按钮超时');
+  logger.warn('等待发送按钮超时');
   return null;
 }
 
@@ -302,16 +302,16 @@ async function triggerSend(selector = null) {
   const sendBtn = await waitForSendButton(3000);
   
   if (sendBtn) {
-    console.log('点击发送按钮');
+    logger.info('点击发送按钮');
     sendBtn.click();
   } else {
     // 如果等待失败，直接尝试查找并点击
     const btn = findSendButton();
     if (btn) {
-      console.log('直接点击发送按钮');
+      logger.info('直接点击发送按钮');
       btn.click();
     } else {
-      console.error('未能找到发送按钮');
+      logger.error('未能找到发送按钮');
     }
   }
 }
