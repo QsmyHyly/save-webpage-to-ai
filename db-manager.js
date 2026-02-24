@@ -1,18 +1,16 @@
 // db-manager.js - IndexedDB 数据库管理类
 // 封装所有数据库操作，提高可维护性和复用性
 
+import { DB_CONFIG } from './constants.js';
+
 class DBManager {
-  constructor(dbName, version) {
-    this.dbName = dbName;
-    this.version = version;
+  constructor() {
+    this.dbName = DB_CONFIG.NAME;
+    this.version = DB_CONFIG.VERSION;
     this.db = null;
     this.stores = {};
   }
 
-  /**
-   * 初始化数据库
-   * @returns {Promise<IDBDatabase>}
-   */
   async init() {
     if (this.db) {
       return this.db;
@@ -25,15 +23,15 @@ class DBManager {
         const database = e.target.result;
         
         // 创建 pages store
-        if (!database.objectStoreNames.contains('pages')) {
-          const store = database.createObjectStore('pages', { keyPath: 'id' });
+        if (!database.objectStoreNames.contains(DB_CONFIG.PAGES_STORE)) {
+          const store = database.createObjectStore(DB_CONFIG.PAGES_STORE, { keyPath: 'id' });
           store.createIndex('savedAt', 'savedAt', { unique: false });
           store.createIndex('url', 'url', { unique: false });
         }
         
         // 创建 resources store
-        if (!database.objectStoreNames.contains('resources')) {
-          const store = database.createObjectStore('resources', { keyPath: 'id' });
+        if (!database.objectStoreNames.contains(DB_CONFIG.RESOURCES_STORE)) {
+          const store = database.createObjectStore(DB_CONFIG.RESOURCES_STORE, { keyPath: 'id' });
           store.createIndex('pageId', 'pageId', { unique: false });
           store.createIndex('type', 'type', { unique: false });
           store.createIndex('savedAt', 'savedAt', { unique: false });
@@ -53,10 +51,6 @@ class DBManager {
     });
   }
 
-  /**
-   * 确保数据库已初始化
-   * @returns {Promise<IDBDatabase>}
-   */
   async ensureDB() {
     if (!this.db) {
       await this.init();
@@ -64,12 +58,6 @@ class DBManager {
     return this.db;
   }
 
-  /**
-   * 执行事务
-   * @param {string} storeName - store 名称
-   * @param {string} mode - 事务模式
-   * @returns {IDBTransaction}
-   */
   transaction(storeName, mode = 'readonly') {
     if (!this.db) {
       throw new Error('数据库未初始化');
@@ -77,23 +65,13 @@ class DBManager {
     return this.db.transaction(storeName, mode);
   }
 
-  /**
-   * 获取 store
-   * @param {string} storeName - store 名称
-   * @param {string} mode - 事务模式
-   * @returns {IDBObjectStore}
-   */
   objectStore(storeName, mode = 'readonly') {
     const tx = this.transaction(storeName, mode);
     return tx.objectStore(storeName);
   }
 
-  /**
-   * 获取所有页面
-   * @returns {Promise<Array>}
-   */
   async getAllPages() {
-    const store = this.objectStore('pages', 'readonly');
+    const store = this.objectStore(DB_CONFIG.PAGES_STORE, 'readonly');
     return new Promise((resolve, reject) => {
       const req = store.getAll();
       req.onsuccess = () => resolve(req.result);
@@ -101,13 +79,8 @@ class DBManager {
     });
   }
 
-  /**
-   * 保存页面
-   * @param {Object} data - 页面数据
-   * @returns {Promise<string>}
-   */
   async savePage(data) {
-    const store = this.objectStore('pages', 'readwrite');
+    const store = this.objectStore(DB_CONFIG.PAGES_STORE, 'readwrite');
     return new Promise((resolve, reject) => {
       data.id = data.id || Date.now() + '-' + Math.random().toString(36).substr(2, 9);
       data.savedAt = data.savedAt || Date.now();
@@ -117,13 +90,8 @@ class DBManager {
     });
   }
 
-  /**
-   * 删除页面
-   * @param {string} id - 页面 ID
-   * @returns {Promise<void>}
-   */
   async deletePage(id) {
-    const store = this.objectStore('pages', 'readwrite');
+    const store = this.objectStore(DB_CONFIG.PAGES_STORE, 'readwrite');
     return new Promise((resolve, reject) => {
       const req = store.delete(id);
       req.onsuccess = () => resolve();
@@ -131,13 +99,8 @@ class DBManager {
     });
   }
 
-  /**
-   * 根据 URL 查找页面
-   * @param {string} url - 页面 URL
-   * @returns {Promise<Array>}
-   */
   async findPageByUrl(url) {
-    const store = this.objectStore('pages', 'readonly');
+    const store = this.objectStore(DB_CONFIG.PAGES_STORE, 'readonly');
     const index = store.index('url');
     return new Promise((resolve, reject) => {
       const req = index.getAll(url);
@@ -146,12 +109,8 @@ class DBManager {
     });
   }
 
-  /**
-   * 清空所有页面
-   * @returns {Promise<void>}
-   */
   async clearAllPages() {
-    const store = this.objectStore('pages', 'readwrite');
+    const store = this.objectStore(DB_CONFIG.PAGES_STORE, 'readwrite');
     return new Promise((resolve, reject) => {
       const req = store.clear();
       req.onsuccess = () => resolve();
@@ -159,13 +118,8 @@ class DBManager {
     });
   }
 
-  /**
-   * 获取某个页面的所有资源
-   * @param {string} pageId - 页面 ID
-   * @returns {Promise<Array>}
-   */
   async getResourcesByPageId(pageId) {
-    const store = this.objectStore('resources', 'readonly');
+    const store = this.objectStore(DB_CONFIG.RESOURCES_STORE, 'readonly');
     const index = store.index('pageId');
     return new Promise((resolve, reject) => {
       const req = index.getAll(pageId);
@@ -174,12 +128,8 @@ class DBManager {
     });
   }
 
-  /**
-   * 获取所有资源
-   * @returns {Promise<Array>}
-   */
   async getAllResources() {
-    const store = this.objectStore('resources', 'readonly');
+    const store = this.objectStore(DB_CONFIG.RESOURCES_STORE, 'readonly');
     return new Promise((resolve, reject) => {
       const req = store.getAll();
       req.onsuccess = () => resolve(req.result);
@@ -187,13 +137,8 @@ class DBManager {
     });
   }
 
-  /**
-   * 保存单个资源
-   * @param {Object} resource - 资源数据
-   * @returns {Promise<string>}
-   */
   async saveResource(resource) {
-    const store = this.objectStore('resources', 'readwrite');
+    const store = this.objectStore(DB_CONFIG.RESOURCES_STORE, 'readwrite');
     return new Promise((resolve, reject) => {
       resource.id = resource.id || `res-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       resource.savedAt = resource.savedAt || Date.now();
@@ -203,11 +148,6 @@ class DBManager {
     });
   }
 
-  /**
-   * 批量保存资源
-   * @param {Array} resources - 资源数组
-   * @returns {Promise<Array<string>>}
-   */
   async saveResources(resources) {
     const ids = [];
     for (const resource of resources) {
@@ -217,13 +157,8 @@ class DBManager {
     return ids;
   }
 
-  /**
-   * 删除资源
-   * @param {string} id - 资源 ID
-   * @returns {Promise<void>}
-   */
   async deleteResource(id) {
-    const store = this.objectStore('resources', 'readwrite');
+    const store = this.objectStore(DB_CONFIG.RESOURCES_STORE, 'readwrite');
     return new Promise((resolve, reject) => {
       const req = store.delete(id);
       req.onsuccess = () => resolve();
@@ -231,13 +166,8 @@ class DBManager {
     });
   }
 
-  /**
-   * 删除某个页面的所有资源
-   * @param {string} pageId - 页面 ID
-   * @returns {Promise<void>}
-   */
   async deleteResourcesByPageId(pageId) {
-    const store = this.objectStore('resources', 'readwrite');
+    const store = this.objectStore(DB_CONFIG.RESOURCES_STORE, 'readwrite');
     const index = store.index('pageId');
     return new Promise((resolve, reject) => {
       const req = index.getAllKeys(pageId);
@@ -250,12 +180,8 @@ class DBManager {
     });
   }
 
-  /**
-   * 清空所有资源
-   * @returns {Promise<void>}
-   */
   async clearAllResources() {
-    const store = this.objectStore('resources', 'readwrite');
+    const store = this.objectStore(DB_CONFIG.RESOURCES_STORE, 'readwrite');
     return new Promise((resolve, reject) => {
       const req = store.clear();
       req.onsuccess = () => resolve();
@@ -263,10 +189,6 @@ class DBManager {
     });
   }
 
-  /**
-   * 关闭数据库连接
-   * @returns {Promise<void>}
-   */
   async close() {
     if (this.db) {
       this.db.close();
@@ -275,5 +197,4 @@ class DBManager {
   }
 }
 
-// 创建全局实例
-const dbManager = new DBManager('PageCacheDB', 2);
+export const dbManager = new DBManager();
