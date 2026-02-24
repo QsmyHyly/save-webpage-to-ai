@@ -1,7 +1,8 @@
 // background.js - Service Worker
 // 负责 IndexedDB 数据库管理和消息处理
 
-import { dbManager } from './db-manager.js';
+// 使用 importScripts 加载依赖脚本（Service Worker 不支持 ES 模块 import）
+importScripts('constants.js', 'db-manager.js');
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log('DeepSeek Page Manager 已安装');

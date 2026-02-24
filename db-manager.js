@@ -1,7 +1,7 @@
 // db-manager.js - IndexedDB 数据库管理类
 // 封装所有数据库操作，提高可维护性和复用性
 
-import { DB_CONFIG } from './constants.js';
+// 注意：DB_CONFIG 已通过 constants.js 在全局作用域定义
 
 class DBManager {
   constructor() {
@@ -206,4 +206,10 @@ class DBManager {
   }
 }
 
-export const dbManager = new DBManager();
+// 创建全局实例
+const dbManager = new DBManager();
+
+// 显式暴露给全局（Service Worker 的全局对象是 self）
+if (typeof self !== 'undefined') {
+  self.dbManager = dbManager;
+}

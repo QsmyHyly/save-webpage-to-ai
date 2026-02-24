@@ -2,7 +2,7 @@
 // 集中管理所有常量，便于维护和修改
 
 // 数据库配置
-export const DB_CONFIG = {
+const DB_CONFIG = {
   NAME: 'PageCacheDB',
   VERSION: 2,
   PAGES_STORE: 'pages',
@@ -10,7 +10,7 @@ export const DB_CONFIG = {
 };
 
 // AI 平台配置
-export const PLATFORM = {
+const PLATFORM = {
   DEEPSEEK: {
     name: 'DeepSeek',
     url: 'https://chat.deepseek.com/',
@@ -24,7 +24,7 @@ export const PLATFORM = {
 };
 
 // 默认屏蔽规则
-export const DEFAULT_BLOCKING_RULES = {
+const DEFAULT_BLOCKING_RULES = {
   idRules: [
     { selector: '#doubao-ai-assistant', enabled: true },
     { selector: '[aria-label="flow-ai-assistant"]', enabled: true },
@@ -38,14 +38,14 @@ export const DEFAULT_BLOCKING_RULES = {
 };
 
 // 存储键名
-export const STORAGE_KEYS = {
+const STORAGE_KEYS = {
   PROFILES: 'profiles',
   CURRENT_PROFILE_ID: 'currentProfileId',
   CURRENT_RESOURCES: 'currentResources'
 };
 
 // 消息类型
-export const MESSAGE_TYPES = {
+const MESSAGE_TYPES = {
   GET_ALL_PAGES: 'GET_ALL_PAGES',
   SAVE_PAGE: 'SAVE_PAGE',
   DELETE_PAGE: 'DELETE_PAGE',
@@ -62,14 +62,14 @@ export const MESSAGE_TYPES = {
 };
 
 // 元数据注释格式
-export const METADATA_COMMENT = {
+const METADATA_COMMENT = {
   HTML: '<!--\n  ResourceMetadata: ${json}\n-->\n',
   CSS: '/*\n  ResourceMetadata: ${json}\n*/\n',
   JS: '// ResourceMetadata: ${json}\n'
 };
 
 // 资源类型
-export const RESOURCE_TYPES = {
+const RESOURCE_TYPES = {
   CSS: 'css',
   JS: 'js',
   IMAGE: 'image',
@@ -78,7 +78,7 @@ export const RESOURCE_TYPES = {
 };
 
 // 资源图标映射
-export const RESOURCE_ICONS = {
+const RESOURCE_ICONS = {
   css: '🎨',
   js: '📜',
   image: '🖼️',
@@ -87,7 +87,7 @@ export const RESOURCE_ICONS = {
 };
 
 // MIME 类型映射
-export const MIME_TYPES = {
+const MIME_TYPES = {
   PNG: 'image/png',
   JPG: 'image/jpeg',
   JPEG: 'image/jpeg',
@@ -100,14 +100,14 @@ export const MIME_TYPES = {
 };
 
 // 文件大小单位
-export const SIZE_UNITS = {
+const SIZE_UNITS = {
   B: 'B',
   KB: 'KB',
   MB: 'MB'
 };
 
 // 通知配置
-export const NOTIFICATION = {
+const NOTIFICATION = {
   DURATION: 3000,
   SLIDE_IN_DURATION: 300,
   SLIDE_OUT_DURATION: 300,
@@ -115,14 +115,14 @@ export const NOTIFICATION = {
 };
 
 // 上传配置
-export const UPLOAD = {
+const UPLOAD = {
   PROGRESS_INTERVAL: 300,
   PROGRESS_STEP: 100 / 2,
   MAX_PROGRESS: 90
 };
 
 // UI 配置
-export const UI = {
+const UI = {
   PROGRESS_BAR_MAX_WIDTH: '100%',
   POPUP_WIDTH: 480,
   POPUP_MIN_HEIGHT: 400,

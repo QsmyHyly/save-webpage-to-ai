@@ -57,3 +57,9 @@ function showResourceEmptyState(message) {
     </div>
   `;
 }
+
+// 将元数据以 HTML 注释形式添加到原始 HTML 内容最前面
+function wrapHtmlWithMetadata(originalHtml, metadata) {
+  const metaComment = `<!--\n  PageMetadata: ${JSON.stringify(metadata, null, 2)}\n-->`;
+  return metaComment + '\n' + originalHtml;
+}
