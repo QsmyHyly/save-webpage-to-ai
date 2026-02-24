@@ -1,5 +1,5 @@
-// background.js - Service Worker
-// 负责 IndexedDB 数据库管理和消息处理
+// db-manager.js - IndexedDB 数据库管理类
+// 封装所有数据库操作，提高可维护性和复用性
 
 class DBManager {
   constructor(dbName, version) {
@@ -9,6 +9,10 @@ class DBManager {
     this.stores = {};
   }
 
+  /**
+   * 初始化数据库
+   * @returns {Promise<IDBDatabase>}
+   */
   async init() {
     if (this.db) {
       return this.db;
@@ -49,6 +53,10 @@ class DBManager {
     });
   }
 
+  /**
+   * 确保数据库已初始化
+   * @returns {Promise<IDBDatabase>}
+   */
   async ensureDB() {
     if (!this.db) {
       await this.init();
@@ -56,6 +64,12 @@ class DBManager {
     return this.db;
   }
 
+  /**
+   * 执行事务
+   * @param {string} storeName - store 名称
+   * @param {string} mode - 事务模式
+   * @returns {IDBTransaction}
+   */
   transaction(storeName, mode = 'readonly') {
     if (!this.db) {
       throw new Error('数据库未初始化');
@@ -63,11 +77,21 @@ class DBManager {
     return this.db.transaction(storeName, mode);
   }
 
+  /**
+   * 获取 store
+   * @param {string} storeName - store 名称
+   * @param {string} mode - 事务模式
+   * @returns {IDBObjectStore}
+   */
   objectStore(storeName, mode = 'readonly') {
     const tx = this.transaction(storeName, mode);
     return tx.objectStore(storeName);
   }
 
+  /**
+   * 获取所有页面
+   * @returns {Promise<Array>}
+   */
   async getAllPages() {
     const store = this.objectStore('pages', 'readonly');
     return new Promise((resolve, reject) => {
@@ -77,6 +101,11 @@ class DBManager {
     });
   }
 
+  /**
+   * 保存页面
+   * @param {Object} data - 页面数据
+   * @returns {Promise<string>}
+   */
   async savePage(data) {
     const store = this.objectStore('pages', 'readwrite');
     return new Promise((resolve, reject) => {
@@ -88,6 +117,11 @@ class DBManager {
     });
   }
 
+  /**
+   * 删除页面
+   * @param {string} id - 页面 ID
+   * @returns {Promise<void>}
+   */
   async deletePage(id) {
     const store = this.objectStore('pages', 'readwrite');
     return new Promise((resolve, reject) => {
@@ -97,6 +131,11 @@ class DBManager {
     });
   }
 
+  /**
+   * 根据 URL 查找页面
+   * @param {string} url - 页面 URL
+   * @returns {Promise<Array>}
+   */
   async findPageByUrl(url) {
     const store = this.objectStore('pages', 'readonly');
     const index = store.index('url');
@@ -107,6 +146,10 @@ class DBManager {
     });
   }
 
+  /**
+   * 清空所有页面
+   * @returns {Promise<void>}
+   */
   async clearAllPages() {
     const store = this.objectStore('pages', 'readwrite');
     return new Promise((resolve, reject) => {
@@ -116,6 +159,11 @@ class DBManager {
     });
   }
 
+  /**
+   * 获取某个页面的所有资源
+   * @param {string} pageId - 页面 ID
+   * @returns {Promise<Array>}
+   */
   async getResourcesByPageId(pageId) {
     const store = this.objectStore('resources', 'readonly');
     const index = store.index('pageId');
@@ -126,6 +174,10 @@ class DBManager {
     });
   }
 
+  /**
+   * 获取所有资源
+   * @returns {Promise<Array>}
+   */
   async getAllResources() {
     const store = this.objectStore('resources', 'readonly');
     return new Promise((resolve, reject) => {
@@ -135,6 +187,11 @@ class DBManager {
     });
   }
 
+  /**
+   * 保存单个资源
+   * @param {Object} resource - 资源数据
+   * @returns {Promise<string>}
+   */
   async saveResource(resource) {
     const store = this.objectStore('resources', 'readwrite');
     return new Promise((resolve, reject) => {
@@ -146,6 +203,11 @@ class DBManager {
     });
   }
 
+  /**
+   * 批量保存资源
+   * @param {Array} resources - 资源数组
+   * @returns {Promise<Array<string>>}
+   */
   async saveResources(resources) {
     const ids = [];
     for (const resource of resources) {
@@ -155,6 +217,11 @@ class DBManager {
     return ids;
   }
 
+  /**
+   * 删除资源
+   * @param {string} id - 资源 ID
+   * @returns {Promise<void>}
+   */
   async deleteResource(id) {
     const store = this.objectStore('resources', 'readwrite');
     return new Promise((resolve, reject) => {
@@ -164,6 +231,11 @@ class DBManager {
     });
   }
 
+  /**
+   * 删除某个页面的所有资源
+   * @param {string} pageId - 页面 ID
+   * @returns {Promise<void>}
+   */
   async deleteResourcesByPageId(pageId) {
     const store = this.objectStore('resources', 'readwrite');
     const index = store.index('pageId');
@@ -178,6 +250,10 @@ class DBManager {
     });
   }
 
+  /**
+   * 清空所有资源
+   * @returns {Promise<void>}
+   */
   async clearAllResources() {
     const store = this.objectStore('resources', 'readwrite');
     return new Promise((resolve, reject) => {
@@ -187,6 +263,10 @@ class DBManager {
     });
   }
 
+  /**
+   * 关闭数据库连接
+   * @returns {Promise<void>}
+   */
   async close() {
     if (this.db) {
       this.db.close();
@@ -195,79 +275,5 @@ class DBManager {
   }
 }
 
+// 创建全局实例
 const dbManager = new DBManager('PageCacheDB', 2);
-
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('DeepSeek Page Manager 已安装');
-  dbManager.init().catch(console.error);
-});
-
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  (async () => {
-    try {
-      switch (msg.type) {
-        case 'GET_ALL_PAGES':
-          const pages = await dbManager.getAllPages();
-          sendResponse(pages);
-          break;
-
-        case 'SAVE_PAGE':
-          const id = await dbManager.savePage(msg.data);
-          sendResponse({ status: 'ok', id });
-          break;
-
-        case 'DELETE_PAGE':
-          await dbManager.deletePage(msg.id);
-          sendResponse({ status: 'ok' });
-          break;
-
-        case 'FIND_PAGE_BY_URL':
-          const found = await dbManager.findPageByUrl(msg.url);
-          sendResponse(found);
-          break;
-
-        case 'CLEAR_ALL_PAGES':
-          await dbManager.clearAllPages();
-          sendResponse({ status: 'ok' });
-          break;
-
-        case 'GET_RESOURCES_BY_PAGE_ID':
-          const resources = await dbManager.getResourcesByPageId(msg.pageId);
-          sendResponse(resources);
-          break;
-
-        case 'GET_ALL_RESOURCES':
-          const allResources = await dbManager.getAllResources();
-          sendResponse(allResources);
-          break;
-
-        case 'SAVE_RESOURCES':
-          const ids = await dbManager.saveResources(msg.resources);
-          sendResponse({ status: 'ok', ids });
-          break;
-
-        case 'DELETE_RESOURCE':
-          await dbManager.deleteResource(msg.id);
-          sendResponse({ status: 'ok' });
-          break;
-
-        case 'DELETE_RESOURCES_BY_PAGE_ID':
-          await dbManager.deleteResourcesByPageId(msg.pageId);
-          sendResponse({ status: 'ok' });
-          break;
-
-        default:
-          sendResponse({ status: 'error', message: '未知消息类型' });
-      }
-    } catch (error) {
-      console.error('处理消息失败:', error);
-      sendResponse({ status: 'error', message: error.message });
-    }
-  })();
-
-  return true;
-});
-
-self.addEventListener('activate', () => {
-  dbManager.init().catch(console.error);
-});
