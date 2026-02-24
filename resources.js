@@ -1,160 +1,53 @@
 let allPages = [];
 let currentResources = [];
 let currentPageId = null;
+let currentResourcesData = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-  await loadPages();
+  await loadCurrentResources();
   bindEvents();
 });
 
-async function loadPages() {
+async function loadCurrentResources() {
   try {
-    allPages = await chrome.runtime.sendMessage({ type: 'GET_ALL_PAGES' });
-    renderPageSelector();
+    const result = await chrome.storage.local.get('currentResources');
+    currentResourcesData = result.currentResources;
+    
+    if (currentResourcesData) {
+      currentResources = currentResourcesData.resources;
+      renderResources();
+      showPageInfo(currentResourcesData);
+    } else {
+      currentResources = [];
+      renderEmptyState();
+    }
   } catch (error) {
-    console.error('加载页面列表失败:', error);
+    console.error('加载当前资源失败:', error);
+    renderEmptyState();
   }
 }
 
-function renderPageSelector() {
-  const select = document.getElementById('pageSelect');
-  select.innerHTML = '<option value="">-- 请选择页面 --</option>';
-  
-  allPages.forEach(page => {
-    const option = document.createElement('option');
-    option.value = page.id;
-    option.textContent = page.title;
-    select.appendChild(option);
-  });
-}
-
-async function loadPageResources(pageId) {
-  if (!pageId) {
-    currentResources = [];
-    renderResources();
-    return;
-  }
-  
-  currentPageId = pageId;
-  
-  try {
-    const page = allPages.find(p => p.id === pageId);
-    if (!page) return;
-    
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(page.html, 'text/html');
-    
-    const resources = [];
-    
-    doc.querySelectorAll('link[rel="stylesheet"]').forEach((link, index) => {
-      resources.push({
-        id: `css-${index}`,
-        url: link.href,
-        type: 'css',
-        mimeType: 'text/css',
-        metadata: {
-          filename: link.href.split('/').pop(),
-          media: link.media || 'all'
-        }
-      });
-    });
-    
-    doc.querySelectorAll('script[src]').forEach((script, index) => {
-      resources.push({
-        id: `js-${index}`,
-        url: script.src,
-        type: 'js',
-        mimeType: 'application/javascript',
-        metadata: {
-          filename: script.src.split('/').pop(),
-          async: script.async,
-          defer: script.defer
-        }
-      });
-    });
-    
-    doc.querySelectorAll('img[src]').forEach((img, index) => {
-      resources.push({
-        id: `img-${index}`,
-        url: img.src,
-        type: 'image',
-        mimeType: guessMimeType(img.src),
-        metadata: {
-          filename: img.src.split('/').pop(),
-          alt: img.alt
-        }
-      });
-    });
-    
-    const savedResources = await chrome.runtime.sendMessage({
-      type: 'GET_RESOURCES_BY_PAGE_ID',
-      pageId: pageId
-    });
-    
-    resources.forEach(res => {
-      const saved = savedResources.find(s => s.url === res.url);
-      res.saved = !!saved;
-      res.savedId = saved ? saved.id : null;
-    });
-    
-    currentResources = resources;
-    renderResources();
-  } catch (error) {
-    console.error('加载资源失败:', error);
-  }
-}
-
-function renderResources() {
+function showPageInfo(pageData) {
   const container = document.getElementById('resourcesList');
   
-  if (currentResources.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="7 10 12 15 17 10"></polyline>
-          <line x1="12" y1="15" x2="12" y2="3"></line>
-        </svg>
-        <p>该页面没有外部资源</p>
-      </div>
-    `;
-    return;
-  }
+  const infoDiv = document.createElement('div');
+  infoDiv.style.cssText = `
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+  `;
+  infoDiv.innerHTML = `
+    <h2 style="margin: 0 0 8px 0; font-size: 18px;">📄 ${escapeHtml(pageData.title)}</h2>
+    <div style="font-size: 14px; opacity: 0.9;">${escapeHtml(pageData.url)}</div>
+    <div style="margin-top: 8px; font-size: 12px; opacity: 0.8;">
+      共 ${currentResources.length} 个外部资源
+    </div>
+  `;
   
   container.innerHTML = '';
-  
-  currentResources.forEach(resource => {
-    const div = document.createElement('div');
-    div.className = 'resource-item';
-    
-    const icon = getResourceIcon(resource.type);
-    const sizeText = resource.size ? formatSize(resource.size) : '未知大小';
-    const statusClass = resource.saved ? 'saved' : 'unsaved';
-    const statusText = resource.saved ? '已保存' : '未保存';
-    
-    div.innerHTML = `
-      <input type="checkbox" class="resource-checkbox" data-id="${resource.id}" ${resource.saved ? 'disabled' : ''}>
-      <div class="resource-icon ${resource.type}">${icon}</div>
-      <div class="resource-info">
-        <div class="resource-url" title="${escapeHtml(resource.url)}">${escapeHtml(resource.url)}</div>
-        <div class="resource-meta">
-          ${escapeHtml(resource.metadata.filename || '')} | ${sizeText} | 
-          <span class="resource-status ${statusClass}">${statusText}</span>
-        </div>
-      </div>
-      ${resource.saved ? `<button class="btn btn-danger delete-btn" data-saved-id="${resource.savedId}">删除</button>` : ''}
-    `;
-    
-    container.appendChild(div);
-  });
-  
-  document.querySelectorAll('.delete-btn').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const savedId = e.target.dataset.savedId;
-      await deleteResource(savedId);
-    });
-  });
+  container.appendChild(infoDiv);
 }
 
 function getResourceIcon(type) {
@@ -254,8 +147,7 @@ async function saveSelectedResources() {
         resourcesToSave.push({
           ...resource,
           content: content,
-          size: content.length,
-          pageId: currentPageId
+          size: content.length
         });
       } catch (error) {
         console.error('下载资源失败:', resource.url, error);
@@ -270,7 +162,8 @@ async function saveSelectedResources() {
       });
       
       alert(`✅ 成功保存 ${resourcesToSave.length} 个资源`);
-      await loadPageResources(currentPageId);
+      
+      await loadCurrentResources();
     }
   } catch (error) {
     console.error('保存资源失败:', error);
@@ -290,7 +183,7 @@ async function deleteResource(savedId) {
       type: 'DELETE_RESOURCE',
       id: savedId
     });
-    await loadPageResources(currentPageId);
+    await loadCurrentResources();
   } catch (error) {
     console.error('删除资源失败:', error);
     alert('删除失败: ' + error.message);
@@ -306,10 +199,6 @@ function deselectAll() {
 }
 
 function bindEvents() {
-  document.getElementById('pageSelect').addEventListener('change', (e) => {
-    loadPageResources(e.target.value);
-  });
-  
   document.getElementById('selectAllBtn').addEventListener('click', selectAll);
   document.getElementById('deselectAllBtn').addEventListener('click', deselectAll);
   document.getElementById('saveSelectedBtn').addEventListener('click', saveSelectedResources);

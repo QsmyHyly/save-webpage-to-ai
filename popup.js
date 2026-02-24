@@ -13,6 +13,20 @@ function formatSize(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
+function guessMimeType(url) {
+  const ext = url.split('.').pop().split('?')[0].toLowerCase();
+  const mimeTypes = {
+    'png': 'image/png',
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'gif': 'image/gif',
+    'svg': 'image/svg+xml',
+    'webp': 'image/webp',
+    'ico': 'image/x-icon'
+  };
+  return mimeTypes[ext] || 'image/*';
+}
+
 /**
  * 将元数据以 HTML 注释形式添加到原始 HTML 内容最前面
  * @param {string} originalHtml - 原始 HTML 内容
@@ -444,8 +458,74 @@ function openSettings() {
 }
 
 // 打开资源管理页面
-function openResourcesManager() {
-  chrome.tabs.create({ url: chrome.runtime.getURL('resources.html') });
+async function openResourcesManager() {
+  try {
+    const tab = await getCurrentTab();
+    
+    // 获取当前页面的资源
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => {
+        const resources = performance.getEntriesByType('resource');
+        const pageUrl = location.href;
+        
+        return {
+          url: pageUrl,
+          title: document.title,
+          resources: resources.map((res, index) => {
+            let type = 'other';
+            let mimeType = '';
+            
+            switch (res.initiatorType) {
+              case 'script':
+                type = 'js';
+                mimeType = 'application/javascript';
+                break;
+              case 'link':
+                type = 'css';
+                mimeType = 'text/css';
+                break;
+              case 'img':
+              case 'image':
+                type = 'image';
+                mimeType = guessMimeType(res.name);
+                break;
+              case 'css':
+                type = 'css';
+                mimeType = 'text/css';
+                break;
+            }
+            
+            return {
+              id: `res-${index}`,
+              url: res.name,
+              type: type,
+              mimeType: mimeType,
+              size: res.transferSize || res.encodedBodySize || 0,
+              duration: res.duration,
+              initiatorType: res.initiatorType,
+              metadata: {
+                filename: res.name.split('/').pop()
+              }
+            };
+          })
+        };
+      }
+    });
+    
+    const pageData = results[0].result;
+    
+    // 保存到 chrome.storage，供 resources.html 使用
+    await chrome.storage.local.set({
+      currentResources: pageData
+    });
+    
+    // 打开资源管理页面
+    chrome.tabs.create({ url: chrome.runtime.getURL('resources.html') });
+  } catch (error) {
+    console.error('打开资源管理页面失败:', error);
+    alert('打开资源管理页面失败: ' + error.message);
+  }
 }
 
 // 初始化
