@@ -7,7 +7,8 @@ let classRules = [];
 // 默认屏蔽规则
 const DEFAULT_ID_RULES = [
   { selector: '#doubao-ai-assistant', enabled: true, description: '豆包 AI 助手' },
-  { selector: '[aria-label="flow-ai-assistant"]', enabled: true, description: 'AI 助手通用标识' }
+  { selector: '[aria-label="flow-ai-assistant"]', enabled: true, description: 'AI 助手通用标识' },
+  { selector: '.mini-header__logo', enabled: true, description: 'B 站 Logo' }
 ];
 
 const DEFAULT_CLASS_RULES = [
