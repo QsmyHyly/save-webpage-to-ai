@@ -13,6 +13,66 @@ function formatSize(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
+/**
+ * 将元数据以 HTML 注释形式添加到原始 HTML 内容最前面
+ * @param {string} originalHtml - 原始 HTML 内容
+ * @param {Object} metadata - 元数据对象
+ * @returns {string} 包装后的 HTML
+ */
+function wrapHtmlWithMetadata(originalHtml, metadata) {
+  const metaComment = `<!--\n  PageMetadata: ${JSON.stringify(metadata, null, 2)}\n-->`;
+  return metaComment + '\n' + originalHtml;
+}
+
+/**
+ * 下载单个页面为 HTML 文件
+ * @param {Object} page - 页面对象
+ */
+async function downloadPage(page) {
+  const metadata = {
+    url: page.url,
+    title: page.title,
+    savedAt: new Date(page.savedAt).toISOString(),
+    originalSize: page.size,
+    capturedFrom: '保存网页并发送给deepseek或千问'
+  };
+
+  const wrappedHtml = wrapHtmlWithMetadata(page.html, metadata);
+  const blob = new Blob([wrappedHtml], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+
+  const fileName = `${page.title.replace(/[\\/:*?"<>|]/g, '_')}.html`;
+
+  try {
+    await chrome.downloads.download({
+      url: url,
+      filename: fileName,
+      saveAs: false
+    });
+  } catch (error) {
+    console.error('下载失败:', error);
+    alert('下载失败: ' + error.message);
+  }
+}
+
+/**
+ * 批量下载选中的页面
+ */
+async function downloadSelected() {
+  const selected = getSelectedPages();
+  if (selected.length === 0) {
+    alert('请至少选择一个页面');
+    return;
+  }
+
+  for (let i = 0; i < selected.length; i++) {
+    await downloadPage(selected[i]);
+    if (i < selected.length - 1) {
+      await new Promise(r => setTimeout(r, 200));
+    }
+  }
+}
+
 // 获取当前标签页
 async function getCurrentTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -109,14 +169,15 @@ function renderList() {
         <span class="size-badge">${formatSize(page.size || 0)}</span>
       </div>
       <div class="page-actions">
+        <button class="btn btn-info download-one" data-id="${page.id}">下载</button>
         <button class="btn btn-danger delete-one" data-id="${page.id}">删除</button>
       </div>
     `;
 
     // 为整个列表项添加点击事件（切换复选框）
     div.addEventListener('click', (event) => {
-      // 如果点击的元素是复选框本身、删除按钮或它们的子元素，则忽略行点击
-      if (event.target.closest('.page-checkbox') || event.target.closest('.delete-one')) {
+      // 如果点击的元素是复选框本身、下载按钮、删除按钮或它们的子元素，则忽略行点击
+      if (event.target.closest('.page-checkbox') || event.target.closest('.download-one') || event.target.closest('.delete-one')) {
         return;
       }
       // 切换当前行的复选框状态
@@ -135,6 +196,18 @@ function renderList() {
       e.stopPropagation(); // 防止事件冒泡到行点击
       const id = e.target.dataset.id;
       await deletePage(id);
+    });
+  });
+
+  // 绑定单个下载按钮
+  document.querySelectorAll('.download-one').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const id = e.target.dataset.id;
+      const page = allPages.find(p => p.id === id);
+      if (page) {
+        await downloadPage(page);
+      }
     });
   });
 }
@@ -330,6 +403,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('saveCurrentBtn').addEventListener('click', saveCurrentPage);
   document.getElementById('selectAllBtn').addEventListener('click', selectAll);
   document.getElementById('deselectAllBtn').addEventListener('click', deselectAll);
+  document.getElementById('downloadSelectedBtn').addEventListener('click', downloadSelected);
   document.getElementById('deleteSelectedBtn').addEventListener('click', deleteSelected);
   document.getElementById('uploadSelectedBtn').addEventListener('click', uploadSelected);
 });
