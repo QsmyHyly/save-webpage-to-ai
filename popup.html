@@ -177,10 +177,15 @@
       align-items: flex-start;
       gap: 10px;
       transition: background 0.2s;
+      min-height: 48px;
     }
 
     .page-item:hover {
       background: #f8f9fa;
+    }
+
+    .page-item.selected {
+      background-color: #e3f2fd;
     }
 
     .page-item:last-child {
@@ -190,6 +195,8 @@
     .page-checkbox {
       margin-top: 2px;
       cursor: pointer;
+      transform: scale(1.5);
+      margin-right: 12px;
     }
 
     .page-info {
@@ -245,10 +252,15 @@
       align-items: center;
       gap: 10px;
       transition: background 0.2s;
+      min-height: 48px;
     }
 
     .resource-item:hover {
       background: #f8f9fa;
+    }
+
+    .resource-item.selected {
+      background-color: #e3f2fd;
     }
 
     .resource-item:last-child {
@@ -257,6 +269,8 @@
 
     .resource-checkbox {
       cursor: pointer;
+      transform: scale(1.5);
+      margin-right: 12px;
     }
 
     .resource-icon {

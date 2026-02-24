@@ -14,6 +14,11 @@
 
   // 监听来自 popup 的消息
   chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
+    if (msg.type === 'PING') {
+      sendResponse({ pong: true });
+      return true;
+    }
+    
     if (msg.type === 'UPLOAD_ITEMS') {
       (async function() {
         var items = msg.items;

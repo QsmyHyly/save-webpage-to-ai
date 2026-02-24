@@ -12,6 +12,21 @@ async function getCurrentTab() {
   return tab;
 }
 
+// 检查内容脚本是否就绪
+async function isContentScriptReady(tabId, timeout = 1000) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(false), timeout);
+    chrome.tabs.sendMessage(tabId, { type: 'PING' }, (response) => {
+      clearTimeout(timer);
+      if (chrome.runtime.lastError) {
+        resolve(false);
+      } else {
+        resolve(response && response.pong === true);
+      }
+    });
+  });
+}
+
 // 检查当前页面是否是目标 AI 平台
 async function checkPlatformStatus() {
   currentTab = await getCurrentTab();
@@ -102,7 +117,23 @@ function renderPages() {
   
   // 绑定事件
   container.querySelectorAll('.page-checkbox').forEach(cb => {
-    cb.addEventListener('change', updateButtonStates);
+    cb.addEventListener('change', (e) => {
+      const item = e.target.closest('.page-item');
+      item.classList.toggle('selected', e.target.checked);
+      updateButtonStates();
+    });
+  });
+  
+  container.querySelectorAll('.page-item').forEach(div => {
+    div.addEventListener('click', (e) => {
+      if (e.target.closest('.page-checkbox') || e.target.closest('.delete-btn') || e.target.closest('.download-btn')) {
+        return;
+      }
+      const checkbox = div.querySelector('.page-checkbox');
+      checkbox.checked = !checkbox.checked;
+      div.classList.toggle('selected', checkbox.checked);
+      updateButtonStates();
+    });
   });
   
   container.querySelectorAll('.download-btn').forEach(btn => {
@@ -148,7 +179,23 @@ function renderResources() {
   
   // 绑定事件
   container.querySelectorAll('.resource-checkbox').forEach(cb => {
-    cb.addEventListener('change', updateButtonStates);
+    cb.addEventListener('change', (e) => {
+      const item = e.target.closest('.resource-item');
+      item.classList.toggle('selected', e.target.checked);
+      updateButtonStates();
+    });
+  });
+  
+  container.querySelectorAll('.resource-item').forEach(div => {
+    div.addEventListener('click', (e) => {
+      if (e.target.closest('.resource-checkbox') || e.target.closest('.delete-resource-btn')) {
+        return;
+      }
+      const checkbox = div.querySelector('.resource-checkbox');
+      checkbox.checked = !checkbox.checked;
+      div.classList.toggle('selected', checkbox.checked);
+      updateButtonStates();
+    });
   });
   
   container.querySelectorAll('.delete-resource-btn').forEach(btn => {
@@ -226,8 +273,6 @@ async function downloadSelected() {
 
 // 删除单个页面
 async function deletePage(id) {
-  if (!confirm('确定要删除这个页面吗？')) return;
-  
   try {
     await chrome.runtime.sendMessage({ type: 'DELETE_PAGE', id });
     await loadPages();
@@ -239,8 +284,6 @@ async function deletePage(id) {
 
 // 删除单个资源
 async function deleteResource(id) {
-  if (!confirm('确定要删除这个资源吗？')) return;
-  
   try {
     await chrome.runtime.sendMessage({ type: 'DELETE_RESOURCE', id });
     await loadResources();
@@ -257,11 +300,7 @@ async function deleteSelected() {
     alert('请至少选择一个页面');
     return;
   }
-  
-  if (!confirm(`确定要删除选中的 ${ids.length} 个页面吗？`)) {
-    return;
-  }
-  
+
   for (const id of ids) {
     await chrome.runtime.sendMessage({ type: 'DELETE_PAGE', id });
   }
@@ -313,9 +352,14 @@ async function saveCurrentPage() {
 
 // 上传选中的页面到当前 AI 平台
 async function uploadSelected() {
-  // 重新获取当前标签页（防止缓存失效）
   currentTab = await getCurrentTab();
-  await checkPlatformStatus(); // 更新 isTargetPage 和 currentPlatform
+  await checkPlatformStatus();
+
+  const ready = await isContentScriptReady(currentTab.id);
+  if (!ready) {
+    alert('当前 AI 页面尚未完全加载，请刷新后重试。');
+    return;
+  }
 
   const selectedPages = getSelectedPages();
   const selectedResources = getSelectedResources();
@@ -338,7 +382,6 @@ async function uploadSelected() {
 
   let progressInterval;
   try {
-    // 向当前 AI 页面内容脚本发送消息
     chrome.tabs.sendMessage(
       currentTab.id,
       {
@@ -349,12 +392,10 @@ async function uploadSelected() {
         ],
       },
       (response) => {
-        // 清理进度条定时器
         if (progressInterval) clearInterval(progressInterval);
         overlay.classList.remove('active');
 
         const platformName = currentPlatform === 'deepseek' ? 'DeepSeek' : '通义千问';
-        // 检查发送错误
         if (chrome.runtime.lastError) {
           logger.error('发送消息失败:', chrome.runtime.lastError);
           alert(`❌ 上传失败：${chrome.runtime.lastError.message}`);
@@ -366,7 +407,6 @@ async function uploadSelected() {
       }
     );
 
-    // 模拟进度更新
     let progress = 0;
     progressInterval = setInterval(() => {
       progress += (100 / totalItems) * 0.5;
