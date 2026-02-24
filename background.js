@@ -3,8 +3,9 @@
 
 let db = null;
 const DB_NAME = 'PageCacheDB';
-const STORE_NAME = 'pages';
-const DB_VERSION = 1;
+const PAGES_STORE = 'pages';
+const RESOURCES_STORE = 'resources';
+const DB_VERSION = 2;
 
 // 初始化数据库
 function initDB() {
@@ -13,10 +14,20 @@ function initDB() {
 
     request.onupgradeneeded = (e) => {
       const database = e.target.result;
-      if (!database.objectStoreNames.contains(STORE_NAME)) {
-        const store = database.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      
+      // pages store
+      if (!database.objectStoreNames.contains(PAGES_STORE)) {
+        const store = database.createObjectStore(PAGES_STORE, { keyPath: 'id' });
         store.createIndex('savedAt', 'savedAt', { unique: false });
         store.createIndex('url', 'url', { unique: false });
+      }
+      
+      // resources store
+      if (!database.objectStoreNames.contains(RESOURCES_STORE)) {
+        const store = database.createObjectStore(RESOURCES_STORE, { keyPath: 'id' });
+        store.createIndex('pageId', 'pageId', { unique: false });
+        store.createIndex('type', 'type', { unique: false });
+        store.createIndex('savedAt', 'savedAt', { unique: false });
       }
     };
 
@@ -45,8 +56,8 @@ async function ensureDB() {
 async function getAllPages() {
   const database = await ensureDB();
   return new Promise((resolve, reject) => {
-    const tx = database.transaction(STORE_NAME, 'readonly');
-    const store = tx.objectStore(STORE_NAME);
+    const tx = database.transaction(PAGES_STORE, 'readonly');
+    const store = tx.objectStore(PAGES_STORE);
     const req = store.getAll();
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -57,8 +68,8 @@ async function getAllPages() {
 async function savePage(data) {
   const database = await ensureDB();
   return new Promise((resolve, reject) => {
-    const tx = database.transaction(STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORE_NAME);
+    const tx = database.transaction(PAGES_STORE, 'readwrite');
+    const store = tx.objectStore(PAGES_STORE);
 
     // 生成唯一 ID
     data.id = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
@@ -74,8 +85,8 @@ async function savePage(data) {
 async function deletePage(id) {
   const database = await ensureDB();
   return new Promise((resolve, reject) => {
-    const tx = database.transaction(STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORE_NAME);
+    const tx = database.transaction(PAGES_STORE, 'readwrite');
+    const store = tx.objectStore(PAGES_STORE);
     const req = store.delete(id);
     req.onsuccess = () => resolve();
     req.onerror = () => reject(req.error);
@@ -86,8 +97,8 @@ async function deletePage(id) {
 async function findPageByUrl(url) {
   const database = await ensureDB();
   return new Promise((resolve, reject) => {
-    const tx = database.transaction(STORE_NAME, 'readonly');
-    const store = tx.objectStore(STORE_NAME);
+    const tx = database.transaction(PAGES_STORE, 'readonly');
+    const store = tx.objectStore(PAGES_STORE);
     const index = store.index('url');
     const req = index.getAll(url);
     req.onsuccess = () => resolve(req.result);
@@ -99,10 +110,78 @@ async function findPageByUrl(url) {
 async function clearAllPages() {
   const database = await ensureDB();
   return new Promise((resolve, reject) => {
-    const tx = database.transaction(STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORE_NAME);
+    const tx = database.transaction(PAGES_STORE, 'readwrite');
+    const store = tx.objectStore(PAGES_STORE);
     const req = store.clear();
     req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// 获取某个页面的所有资源
+async function getResourcesByPageId(pageId) {
+  const database = await ensureDB();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction(RESOURCES_STORE, 'readonly');
+    const store = tx.objectStore(RESOURCES_STORE);
+    const index = store.index('pageId');
+    const req = index.getAll(pageId);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// 保存单个资源
+async function saveResource(resource) {
+  const database = await ensureDB();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction(RESOURCES_STORE, 'readwrite');
+    const store = tx.objectStore(RESOURCES_STORE);
+    
+    resource.id = resource.id || `res-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    resource.savedAt = resource.savedAt || Date.now();
+    
+    const req = store.put(resource);
+    req.onsuccess = () => resolve(resource.id);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// 批量保存资源
+async function saveResources(resources) {
+  const ids = [];
+  for (const resource of resources) {
+    const id = await saveResource(resource);
+    ids.push(id);
+  }
+  return ids;
+}
+
+// 删除资源
+async function deleteResource(id) {
+  const database = await ensureDB();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction(RESOURCES_STORE, 'readwrite');
+    const store = tx.objectStore(RESOURCES_STORE);
+    const req = store.delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// 删除某个页面的所有资源
+async function deleteResourcesByPageId(pageId) {
+  const database = await ensureDB();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction(RESOURCES_STORE, 'readwrite');
+    const store = tx.objectStore(RESOURCES_STORE);
+    const index = store.index('pageId');
+    const req = index.getAllKeys(pageId);
+    req.onsuccess = () => {
+      const keys = req.result;
+      keys.forEach(key => store.delete(key));
+      resolve();
+    };
     req.onerror = () => reject(req.error);
   });
 }
@@ -143,6 +222,26 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           sendResponse({ status: 'ok' });
           break;
 
+        case 'GET_RESOURCES_BY_PAGE_ID':
+          const resources = await getResourcesByPageId(msg.pageId);
+          sendResponse(resources);
+          break;
+
+        case 'SAVE_RESOURCES':
+          const ids = await saveResources(msg.resources);
+          sendResponse({ status: 'ok', ids });
+          break;
+
+        case 'DELETE_RESOURCE':
+          await deleteResource(msg.id);
+          sendResponse({ status: 'ok' });
+          break;
+
+        case 'DELETE_RESOURCES_BY_PAGE_ID':
+          await deleteResourcesByPageId(msg.pageId);
+          sendResponse({ status: 'ok' });
+          break;
+
         default:
           sendResponse({ status: 'error', message: '未知消息类型' });
       }
@@ -152,7 +251,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
   })();
 
-  return true; // 保持异步响应
+  return true;
 });
 
 // Service Worker 启动时初始化数据库

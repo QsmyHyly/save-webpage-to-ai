@@ -443,6 +443,11 @@ function openSettings() {
   chrome.tabs.create({ url: chrome.runtime.getURL('options.html') });
 }
 
+// 打开资源管理页面
+function openResourcesManager() {
+  chrome.tabs.create({ url: chrome.runtime.getURL('resources.html') });
+}
+
 // 初始化
 document.addEventListener('DOMContentLoaded', async () => {
   // 检查平台状态
@@ -453,6 +458,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 绑定事件
   document.getElementById('saveCurrentBtn').addEventListener('click', saveCurrentPage);
+  document.getElementById('manageResourcesBtn').addEventListener('click', openResourcesManager);
   document.getElementById('selectAllBtn').addEventListener('click', selectAll);
   document.getElementById('deselectAllBtn').addEventListener('click', deselectAll);
   document.getElementById('downloadSelectedBtn').addEventListener('click', downloadSelected);

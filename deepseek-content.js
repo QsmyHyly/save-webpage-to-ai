@@ -23,6 +23,38 @@
     return metaComment + '\n' + originalHtml;
   }
 
+  function generateCompleteHtml(page, resources) {
+    let html = page.html;
+    
+    const cssResources = resources.filter(r => r.type === 'css' && r.content);
+    cssResources.forEach(cssRes => {
+      const styleTag = `<style data-resource-id="${cssRes.id}">\n${cssRes.content}\n</style>`;
+      html = html.replace(
+        `<link href="${cssRes.url}" rel="stylesheet">`,
+        styleTag
+      );
+    });
+    
+    const jsResources = resources.filter(r => r.type === 'js' && r.content);
+    jsResources.forEach(jsRes => {
+      const scriptTag = `<script data-resource-id="${jsRes.id}">\n${jsRes.content}\n</script>`;
+      html = html.replace(
+        `<script src="${jsRes.url}">`,
+        scriptTag
+      );
+    });
+    
+    const imageResources = resources.filter(r => r.type === 'image' && r.content);
+    imageResources.forEach(imgRes => {
+      html = html.replace(
+        `src="${imgRes.url}"`,
+        `src="${imgRes.content}"`
+      );
+    });
+    
+    return html;
+  }
+
   // 上传 HTML 文件到 DeepSeek
   async function uploadFileAsHTML(htmlContent, fileName = 'page.html') {
     // 尝试多种选择器找到输入框
@@ -180,26 +212,35 @@
           const page = pages[i];
           const fileName = `${page.title.replace(/[\\/:*?"<>|]/g, '_')}.html`;
 
-          // 构造元数据对象
+          const resources = await chrome.runtime.sendMessage({
+            type: 'GET_RESOURCES_BY_PAGE_ID',
+            pageId: page.id
+          });
+
+          const completeHtml = generateCompleteHtml(page, resources);
+
           const metadata = {
             url: page.url,
             title: page.title,
             savedAt: new Date(page.savedAt).toISOString(),
             originalSize: page.size,
+            resourcesCount: resources.length,
+            resourcesIncluded: resources.map(r => ({
+              type: r.type,
+              url: r.url,
+              size: r.size
+            })),
             capturedFrom: '保存网页并发送给deepseek或千问'
           };
 
-          // 包装 HTML
-          const wrappedHtml = wrapHtmlWithMetadata(page.html, metadata);
+          const wrappedHtml = wrapHtmlWithMetadata(completeHtml, metadata);
 
           try {
             const success = await uploadFileAsHTML(wrappedHtml, fileName);
             if (success) {
               successCount++;
-              // 等待一下再发送，避免冲突
               await new Promise(r => setTimeout(r, 800));
               triggerSend();
-              // 等待发送完成
               await new Promise(r => setTimeout(r, 600));
             } else {
               console.error('上传失败:', page.title);
@@ -213,7 +254,7 @@
         sendResponse({ status: 'ok', count: successCount });
       })();
 
-      return true; // 保持异步响应
+      return true;
     }
   });
 

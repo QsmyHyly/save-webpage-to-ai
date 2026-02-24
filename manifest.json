@@ -12,7 +12,8 @@
   "host_permissions": [
     "https://chat.deepseek.com/*",
     "https://*.qianwen.com/*",
-    "https://*.qwen.ai/*"
+    "https://*.qwen.ai/*",
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background.js"
