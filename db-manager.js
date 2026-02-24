@@ -20,10 +20,12 @@ class DBManager {
       const request = indexedDB.open(this.dbName, this.version);
 
       request.onupgradeneeded = (e) => {
+        self.logger.info('数据库升级，当前版本:', e.oldVersion, '新版本:', e.newVersion);
         const database = e.target.result;
         
         // 创建 pages store
         if (!database.objectStoreNames.contains(DB_CONFIG.PAGES_STORE)) {
+          self.logger.info('创建 pages store');
           const store = database.createObjectStore(DB_CONFIG.PAGES_STORE, { keyPath: 'id' });
           store.createIndex('savedAt', 'savedAt', { unique: false });
           store.createIndex('url', 'url', { unique: false });
@@ -31,6 +33,7 @@ class DBManager {
         
         // 创建 resources store
         if (!database.objectStoreNames.contains(DB_CONFIG.RESOURCES_STORE)) {
+          self.logger.info('创建 resources store');
           const store = database.createObjectStore(DB_CONFIG.RESOURCES_STORE, { keyPath: 'id' });
           store.createIndex('pageId', 'pageId', { unique: false });
           store.createIndex('type', 'type', { unique: false });

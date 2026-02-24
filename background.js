@@ -14,12 +14,34 @@ const LOG_LEVELS = {
   error: 3
 };
 
+// 消息处理超时时间（毫秒）
+const MESSAGE_TIMEOUT = 5000;
+
 chrome.runtime.onInstalled.addListener(function() {
   logger.info('DeepSeek Page Manager 已安装');
   dbManager.init().catch(function(err) {
     logger.error('数据库初始化失败:', err);
   });
 });
+
+// 带超时的异步操作包装器
+function withTimeout(promise, timeoutMs, errorMessage) {
+  return new Promise(function(resolve, reject) {
+    var timeoutId = setTimeout(function() {
+      reject(new Error(errorMessage || '操作超时'));
+    }, timeoutMs);
+
+    promise
+      .then(function(result) {
+        clearTimeout(timeoutId);
+        resolve(result);
+      })
+      .catch(function(error) {
+        clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
+}
 
 // 统一消息监听器
 chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
@@ -38,57 +60,101 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
     try {
       switch (msg.type) {
         case 'GET_ALL_PAGES':
-          var pages = await dbManager.getAllPages();
+          var pages = await withTimeout(
+            dbManager.getAllPages(),
+            MESSAGE_TIMEOUT,
+            '获取页面列表超时'
+          );
           sendResponse(pages);
           break;
 
         case 'SAVE_PAGE':
-          var id = await dbManager.savePage(msg.data);
+          var id = await withTimeout(
+            dbManager.savePage(msg.data),
+            MESSAGE_TIMEOUT,
+            '保存页面超时'
+          );
           sendResponse({ status: 'ok', id: id });
           break;
 
         case 'DELETE_PAGE':
-          await dbManager.deletePage(msg.id);
+          await withTimeout(
+            dbManager.deletePage(msg.id),
+            MESSAGE_TIMEOUT,
+            '删除页面超时'
+          );
           sendResponse({ status: 'ok' });
           break;
 
         case 'FIND_PAGE_BY_URL':
-          var found = await dbManager.findPageByUrl(msg.url);
+          var found = await withTimeout(
+            dbManager.findPageByUrl(msg.url),
+            MESSAGE_TIMEOUT,
+            '查找页面超时'
+          );
           sendResponse(found);
           break;
 
         case 'CLEAR_ALL_PAGES':
-          await dbManager.clearAllPages();
+          await withTimeout(
+            dbManager.clearAllPages(),
+            MESSAGE_TIMEOUT,
+            '清空页面超时'
+          );
           sendResponse({ status: 'ok' });
           break;
 
         case 'GET_RESOURCES_BY_PAGE_ID':
-          var resources = await dbManager.getResourcesByPageId(msg.pageId);
+          var resources = await withTimeout(
+            dbManager.getResourcesByPageId(msg.pageId),
+            MESSAGE_TIMEOUT,
+            '获取资源列表超时'
+          );
           sendResponse(resources);
           break;
 
         case 'GET_ALL_RESOURCES':
-          var allResources = await dbManager.getAllResources();
+          var allResources = await withTimeout(
+            dbManager.getAllResources(),
+            MESSAGE_TIMEOUT,
+            '获取所有资源超时'
+          );
           sendResponse(allResources);
           break;
 
         case 'GET_RESOURCE_BY_ID':
-          var resource = await dbManager.getResourceById(msg.id);
+          var resource = await withTimeout(
+            dbManager.getResourceById(msg.id),
+            MESSAGE_TIMEOUT,
+            '获取资源超时'
+          );
           sendResponse(resource);
           break;
 
         case 'SAVE_RESOURCES':
-          var ids = await dbManager.saveResources(msg.resources);
+          var ids = await withTimeout(
+            dbManager.saveResources(msg.resources),
+            MESSAGE_TIMEOUT,
+            '保存资源超时'
+          );
           sendResponse({ status: 'ok', ids: ids });
           break;
 
         case 'DELETE_RESOURCE':
-          await dbManager.deleteResource(msg.id);
+          await withTimeout(
+            dbManager.deleteResource(msg.id),
+            MESSAGE_TIMEOUT,
+            '删除资源超时'
+          );
           sendResponse({ status: 'ok' });
           break;
 
         case 'DELETE_RESOURCES_BY_PAGE_ID':
-          await dbManager.deleteResourcesByPageId(msg.pageId);
+          await withTimeout(
+            dbManager.deleteResourcesByPageId(msg.pageId),
+            MESSAGE_TIMEOUT,
+            '删除页面资源超时'
+          );
           sendResponse({ status: 'ok' });
           break;
 
