@@ -19,20 +19,30 @@
   - 默认配置不可修改，作为模板供参考
   - 配置组自动同步到 Google 账号，跨设备可用
 - 🚫 **元素屏蔽功能**：在保存网页时自动移除不需要的元素（如 AI 助手、广告等）
+- 📦 **外部资源管理**：
+  - 使用 performance API 获取当前页面的所有外部资源
+  - 支持查看和保存 CSS、JavaScript、图片等资源
+  - 保存的资源会自动内联到上传的 HTML 中
 
 ## 文件结构
 
 ```
 AI-Page-Manager/
-├── manifest.json          # 扩展配置文件
-├── background.js          # Service Worker，管理 IndexedDB 存储
-├── popup.html             # 扩展 popup 界面
-├── popup.js               # popup 界面逻辑
-├── options.html            # 设置页面（配置组管理）
-├── options.js             # 设置页面逻辑
-├── deepseek-content.js    # DeepSeek 页面内容脚本（处理上传）
-├── qianwen-uploader.js    # 通义千问页面内容脚本
-└── icons/                 # 图标文件夹
+├── manifest.json              # 扩展配置文件
+├── background.js              # Service Worker，管理 IndexedDB 存储
+├── popup.html                # 扩展 popup 界面
+├── popup.js                  # popup 界面逻辑
+├── popup-utils.js            # popup 工具函数模块
+├── resources.html             # 资源管理页面
+├── resources.js              # 资源管理逻辑
+├── content-utils.js          # 内容脚本共享模块
+├── deepseek-content.js       # DeepSeek 页面内容脚本（处理上传）
+├── qianwen-uploader.js       # 通义千问页面内容脚本（处理上传）
+├── db-manager.js             # IndexedDB 数据库管理类
+├── constants.js              # 常量定义模块
+├── options.html              # 设置页面
+├── options.js                # 设置页面逻辑
+└── icons/                   # 图标文件夹
     ├── icon16.png
     ├── icon48.png
     └── icon128.png
@@ -41,14 +51,12 @@ AI-Page-Manager/
 ## 安装步骤
 
 ### 1. 准备图标文件
-
 在 `icons/` 文件夹中放置以下尺寸的 PNG 图标：
 - `icon16.png` (16x16)
 - `icon48.png` (48x48)
 - `icon128.png` (128x128)
 
 ### 2. 加载扩展到 Chrome
-
 1. 打开 Chrome 浏览器，在地址栏输入 `chrome://extensions/` 并回车
 2. 开启右上角的「开发者模式」
 3. 点击「加载已解压的扩展程序」
@@ -58,21 +66,18 @@ AI-Page-Manager/
 ## 使用方法
 
 ### 保存页面
-
 1. 访问任意网页
 2. 点击 Chrome 工具栏中的扩展图标
 3. 在 popup 中点击「保存当前页面」按钮
 4. 页面的完整 HTML、标题、URL 将保存到本地存储
 
 ### 管理保存的页面
-
 1. 在 popup 中查看所有已保存的页面列表
 2. 点击页面行可快速选中/取消选中（复选框）
 3. 使用「全选」「取消全选」按钮批量操作
 4. 点击单个「删除」按钮或「删除选中」按钮清理无用页面
 
 ### 配置元素屏蔽规则
-
 1. 点击 popup 中的「⚙️ 屏蔽设置」按钮打开设置页面
 2. 在设置页面中可以：
    - **创建新配置组**：点击「➕ 创建新配置」按钮，输入配置名称
@@ -86,12 +91,19 @@ AI-Page-Manager/
 4. 配置会自动同步到 Google 账号，跨设备可用
 
 ### 上传到 AI 平台
-
 1. 打开 DeepSeek 对话页面（`https://chat.deepseek.com/`）或通义千问对话页面（`qianwen.com` / `qwen.ai`）
 2. 点击扩展图标，状态栏会显示当前平台，上传按钮会变为「上传到 DeepSeek」或「上传到通义千问」
 3. 勾选要上传的页面
 4. 点击上传按钮，扩展将逐个将选中的页面作为 HTML 文件拖拽到 AI 输入框，并自动点击发送
 5. 上传过程中会显示进度条，完成后弹出提示
+
+### 管理外部资源
+1. 点击 popup 中的「📦 管理外部资源」按钮
+2. 扩展会使用 performance API 获取当前页面的所有外部资源
+3. 查看该页面的所有外部资源（CSS、JavaScript、图片等）
+4. 勾选需要保存的资源
+5. 点击「💾 保存选中的资源」按钮下载并保存到 IndexedDB
+6. 保存的资源会自动内联到上传的 HTML 中
 
 ## 注意事项
 
@@ -101,6 +113,7 @@ AI-Page-Manager/
 4. **上传机制**：扩展通过模拟拖拽事件上传文件，需要 AI 页面支持拖拽上传（DeepSeek 和通义千问均已支持）。
 5. **自动发送**：上传后会尝试自动点击发送按钮。如果发送失败，请手动点击 AI 输入框旁的发送按钮。
 6. **跨域限制**：扩展仅在当前标签页执行内容脚本，不会读取或修改其他网站数据。
+7. **资源管理**：外部资源功能使用 performance API 获取已加载的资源，需要页面完全加载后才能获取完整列表。
 
 ## 隐私说明
 
@@ -117,6 +130,11 @@ AI-Page-Manager/
 - **DragEvent**：模拟拖拽事件实现文件上传
 - **chrome.storage.sync**：配置组数据自动同步到用户 Google 账号，跨设备可用
 - **配置组管理**：支持多配置组创建、切换、复制、重命名、删除
+- **模块化架构**：
+  - `db-manager.js`：封装所有 IndexedDB 操作
+  - `constants.js`：统一管理所有常量
+  - `content-utils.js`：内容脚本共享函数
+  - `popup-utils.js`：popup 工具函数模块
 
 ## 许可证
 
