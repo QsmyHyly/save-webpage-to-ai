@@ -77,15 +77,33 @@ async function downloadSelected() {
  * 获取启用的屏蔽选择器列表
  */
 async function getEnabledSelectors() {
-  const [idResult, classResult] = await Promise.all([
-    chrome.storage.sync.get('idRules'),
-    chrome.storage.sync.get('classRules')
+  const [profilesResult, currentProfileResult] = await Promise.all([
+    chrome.storage.sync.get('profiles'),
+    chrome.storage.sync.get('currentProfileId')
   ]);
 
-  const idRules = idResult.idRules || [];
-  const classRules = classResult.classRules || [];
+  const profiles = profilesResult.profiles || {};
+  const currentProfileId = currentProfileResult.currentProfileId || 'default';
+  const profile = profiles[currentProfileId];
 
-  return [...idRules.filter(r => r.enabled), ...classRules.filter(r => r.enabled)].map(r => r.selector);
+  if (profile) {
+    const idRules = profile.idRules || [];
+    const classRules = profile.classRules || [];
+    return [...idRules.filter(r => r.enabled), ...classRules.filter(r => r.enabled)].map(r => r.selector);
+  }
+
+  // 如果配置不存在，返回默认规则
+  const DEFAULT_ID_RULES = [
+    { selector: '#doubao-ai-assistant', enabled: true },
+    { selector: '[aria-label="flow-ai-assistant"]', enabled: true },
+    { selector: '.mini-header__logo', enabled: true }
+  ];
+  const DEFAULT_CLASS_RULES = [
+    { selector: '.ad-banner', enabled: true },
+    { selector: '[data-ad]', enabled: true },
+    { selector: '.popup-overlay', enabled: true }
+  ];
+  return [...DEFAULT_ID_RULES, ...DEFAULT_CLASS_RULES].map(r => r.selector);
 }
 
 // 获取当前标签页

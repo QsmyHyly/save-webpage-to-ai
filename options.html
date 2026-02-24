@@ -14,7 +14,7 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
       background: #f5f7fa;
       padding: 40px 20px;
-      max-width: 900px;
+      max-width: 1000px;
       margin: 0 auto;
     }
 
@@ -46,6 +46,91 @@
       color: #666;
       margin-bottom: 24px;
       line-height: 1.6;
+    }
+
+    .profile-section {
+      margin-bottom: 32px;
+    }
+
+    .profile-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .profile-header h3 {
+      font-size: 16px;
+      color: #333;
+      margin: 0;
+    }
+
+    .profile-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+    }
+
+    .profile-item {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 16px;
+      background: #fafafa;
+      transition: all 0.2s;
+    }
+
+    .profile-item:hover {
+      background: #f0f7ff;
+      border-color: #667eea;
+    }
+
+    .profile-item.active {
+      background: #e7f3ff;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102,126,234,0.2);
+    }
+
+    .profile-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .profile-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .profile-badge {
+      background: #667eea;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 500;
+    }
+
+    .profile-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .profile-btn {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+
+    .profile-btn:hover {
+      background: #667eea;
+      color: white;
+      border-color: #667eea;
     }
 
     .rules-section {
@@ -140,9 +225,14 @@
       transition: all 0.2s;
     }
 
-    .rule-delete:hover {
+    .rule-delete:hover:not(:disabled) {
       background: #dc3545;
       color: white;
+    }
+
+    .rule-delete:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
     }
 
     .add-rule-form {
@@ -168,6 +258,11 @@
       box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
     }
 
+    .add-rule-form input:disabled {
+      background: #f0f0f0;
+      cursor: not-allowed;
+    }
+
     .btn {
       padding: 10px 20px;
       border: none;
@@ -183,10 +278,15 @@
       color: white;
     }
 
-    .btn-primary:hover {
+    .btn-primary:hover:not(:disabled) {
       background: #5568d3;
       transform: translateY(-1px);
       box-shadow: 0 4px 12px rgba(102,126,234,0.2);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
 
     .btn-secondary {
@@ -203,8 +303,13 @@
       color: white;
     }
 
-    .btn-success:hover {
+    .btn-success:hover:not(:disabled) {
       background: #218838;
+    }
+
+    .btn-success:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
 
     .example-box {
@@ -268,6 +373,17 @@
       配置在保存网页时需要移除的元素。这些设置会自动同步到您的 Google 账号，跨设备可用。
     </p>
 
+    <h2>📁 配置组管理</h2>
+    <div class="profile-section">
+      <div class="profile-header">
+        <h3>配置组列表</h3>
+        <button id="createProfileBtn" class="btn btn-primary">➕ 创建新配置</button>
+      </div>
+      <div id="profileList" class="profile-list">
+        <!-- 配置组列表将动态生成 -->
+      </div>
+    </div>
+
     <h2>🆔 ID 选择器屏蔽列表</h2>
     <div class="rules-section">
       <div class="rules-header">
@@ -310,8 +426,7 @@
     </div>
 
     <div class="footer">
-      <button id="resetAllBtn" class="btn btn-secondary">恢复默认设置</button>
-      <button id="saveAllBtn" class="btn btn-success">保存所有设置</button>
+      <button id="saveAllBtn" class="btn btn-success">保存当前配置</button>
     </div>
   </div>
 
