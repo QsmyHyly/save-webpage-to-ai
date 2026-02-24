@@ -72,6 +72,7 @@ function renderResources() {
   currentResources.forEach(resource => {
     const div = document.createElement('div');
     div.className = 'resource-item';
+    div.style.cursor = 'pointer';
     
     const icon = getResourceIcon(resource.type);
     const sizeText = resource.size ? formatSize(resource.size) : '未知大小';
@@ -88,6 +89,15 @@ function renderResources() {
         </div>
       </div>
     `;
+    
+    div.addEventListener('click', (e) => {
+      if (e.target.classList.contains('resource-checkbox')) {
+        return;
+      }
+      const checkbox = div.querySelector('.resource-checkbox');
+      checkbox.checked = !checkbox.checked;
+      updateSaveButtonState();
+    });
     
     container.appendChild(div);
   });
@@ -249,10 +259,17 @@ async function deleteResource(savedId) {
 
 function selectAll() {
   document.querySelectorAll('.resource-checkbox:not(:disabled)').forEach(cb => cb.checked = true);
+  updateSaveButtonState();
 }
 
 function deselectAll() {
   document.querySelectorAll('.resource-checkbox').forEach(cb => cb.checked = false);
+  updateSaveButtonState();
+}
+
+function updateSaveButtonState() {
+  const checkedCount = document.querySelectorAll('.resource-checkbox:checked').length;
+  document.getElementById('saveSelectedBtn').disabled = checkedCount === 0;
 }
 
 function bindEvents() {
@@ -262,8 +279,7 @@ function bindEvents() {
   
   document.addEventListener('change', (e) => {
     if (e.target.classList.contains('resource-checkbox')) {
-      const checkedCount = document.querySelectorAll('.resource-checkbox:checked').length;
-      document.getElementById('saveSelectedBtn').disabled = checkedCount === 0;
+      updateSaveButtonState();
     }
   });
 }

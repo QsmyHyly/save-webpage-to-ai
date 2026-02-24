@@ -131,6 +131,18 @@ async function getResourcesByPageId(pageId) {
   });
 }
 
+// 获取所有资源
+async function getAllResources() {
+  const database = await ensureDB();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction(RESOURCES_STORE, 'readonly');
+    const store = tx.objectStore(RESOURCES_STORE);
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
 // 保存单个资源
 async function saveResource(resource) {
   const database = await ensureDB();
@@ -225,6 +237,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         case 'GET_RESOURCES_BY_PAGE_ID':
           const resources = await getResourcesByPageId(msg.pageId);
           sendResponse(resources);
+          break;
+
+        case 'GET_ALL_RESOURCES':
+          const allResources = await getAllResources();
+          sendResponse(allResources);
           break;
 
         case 'SAVE_RESOURCES':

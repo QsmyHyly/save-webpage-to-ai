@@ -145,10 +145,29 @@
       background: #28a745;
     }
 
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .section-title .count {
+      background: #667eea;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+    }
+
     .page-list {
       background: white;
       border-radius: 8px;
       overflow: hidden;
+      margin-bottom: 12px;
     }
 
     .page-item {
@@ -210,6 +229,80 @@
     .page-actions .btn {
       padding: 4px 8px;
       font-size: 11px;
+    }
+
+    .resource-list {
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    .resource-item {
+      padding: 10px 12px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: background 0.2s;
+    }
+
+    .resource-item:hover {
+      background: #f8f9fa;
+    }
+
+    .resource-item:last-child {
+      border-bottom: none;
+    }
+
+    .resource-checkbox {
+      cursor: pointer;
+    }
+
+    .resource-icon {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+
+    .resource-icon.css { background: #e3f2fd; color: #1976d2; }
+    .resource-icon.js { background: #fff3e0; color: #f57c00; }
+    .resource-icon.image { background: #e8f5e9; color: #388e3c; }
+    .resource-icon.font { background: #f3e5f5; color: #7b1fa2; }
+    .resource-icon.other { background: #eceff1; color: #607d8b; }
+
+    .resource-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .resource-filename {
+      font-size: 12px;
+      font-weight: 500;
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .resource-meta {
+      font-size: 10px;
+      color: #888;
+      margin-top: 2px;
+    }
+
+    .resource-actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .resource-actions .btn {
+      padding: 3px 6px;
+      font-size: 10px;
     }
 
     .empty-state {
@@ -329,8 +422,20 @@
       <span id="statusText">未在 DeepSeek 页面</span>
     </div>
 
+    <div class="section-title">
+      📄 已保存的页面
+      <span id="pageCount" class="count">0</span>
+    </div>
     <div id="pageList" class="page-list">
       <!-- 页面列表将在这里动态生成 -->
+    </div>
+
+    <div class="section-title">
+      📦 已保存的资源
+      <span id="resourceCount" class="count">0</span>
+    </div>
+    <div id="resourceList" class="resource-list">
+      <!-- 资源列表将在这里动态生成 -->
     </div>
   </div>
 

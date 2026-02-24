@@ -2,6 +2,7 @@
 // 负责管理已保存的页面列表，支持保存、删除、上传到 DeepSeek
 
 let allPages = [];
+let allResources = [];
 let isTargetPage = false;
 let currentTab = null;
 let currentPlatform = ''; // 'deepseek' | 'qianwen' | ''
@@ -184,9 +185,38 @@ async function loadPages() {
   try {
     allPages = await chrome.runtime.sendMessage({ type: 'GET_ALL_PAGES' });
     renderList();
+    updatePageCount();
   } catch (error) {
     console.error('加载页面列表失败:', error);
     showEmptyState('加载失败，请重试');
+  }
+}
+
+// 加载资源列表
+async function loadResources() {
+  try {
+    allResources = await chrome.runtime.sendMessage({ type: 'GET_ALL_RESOURCES' });
+    renderResourceList();
+    updateResourceCount();
+  } catch (error) {
+    console.error('加载资源列表失败:', error);
+    showResourceEmptyState('加载失败，请重试');
+  }
+}
+
+// 更新页面计数
+function updatePageCount() {
+  const countEl = document.getElementById('pageCount');
+  if (countEl) {
+    countEl.textContent = allPages.length;
+  }
+}
+
+// 更新资源计数
+function updateResourceCount() {
+  const countEl = document.getElementById('resourceCount');
+  if (countEl) {
+    countEl.textContent = allResources.length;
   }
 }
 
@@ -259,6 +289,75 @@ function renderList() {
   });
 }
 
+// 渲染资源列表
+function renderResourceList() {
+  const container = document.getElementById('resourceList');
+
+  if (allResources.length === 0) {
+    showResourceEmptyState('暂无保存的资源，点击"管理外部资源"添加');
+    return;
+  }
+
+  container.innerHTML = '';
+
+  // 按保存时间倒序排列
+  allResources.sort((a, b) => b.savedAt - a.savedAt);
+
+  allResources.forEach(resource => {
+    const div = document.createElement('div');
+    div.className = 'resource-item';
+    
+    const icon = getResourceIcon(resource.type);
+    const sizeText = resource.size ? formatSize(resource.size) : '未知大小';
+    
+    div.innerHTML = `
+      <input type="checkbox" class="resource-checkbox" data-id="${resource.id}">
+      <div class="resource-icon ${resource.type}">${icon}</div>
+      <div class="resource-info">
+        <div class="resource-filename" title="${escapeHtml(resource.metadata?.filename || resource.url)}">${escapeHtml(resource.metadata?.filename || resource.url)}</div>
+        <div class="resource-meta">${sizeText} | ${resource.type.toUpperCase()}</div>
+      </div>
+      <div class="resource-actions">
+        <button class="btn btn-danger delete-resource" data-id="${resource.id}">删除</button>
+      </div>
+    `;
+
+    // 为整个列表项添加点击事件（切换复选框）
+    div.addEventListener('click', (event) => {
+      if (event.target.closest('.resource-checkbox') || event.target.closest('.delete-resource')) {
+        return;
+      }
+      const checkbox = div.querySelector('.resource-checkbox');
+      if (checkbox) {
+        checkbox.checked = !checkbox.checked;
+      }
+    });
+
+    container.appendChild(div);
+  });
+
+  // 绑定单个删除按钮
+  document.querySelectorAll('.delete-resource').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const id = e.target.dataset.id;
+      await deleteResource(id);
+    });
+  });
+}
+
+// 获取资源图标
+function getResourceIcon(type) {
+  const icons = {
+    css: '🎨',
+    js: '📜',
+    image: '🖼️',
+    font: '🔤',
+    other: '📄'
+  };
+  return icons[type] || icons.other;
+}
+
 // 显示空状态
 function showEmptyState(message) {
   const container = document.getElementById('pageList');
@@ -269,6 +368,21 @@ function showEmptyState(message) {
         <polyline points="14 2 14 8 20 8"></polyline>
         <line x1="16" y1="13" x2="8" y2="13"></line>
         <line x1="16" y1="17" x2="8" y2="17"></line>
+      </svg>
+      <p>${message}</p>
+    </div>
+  `;
+}
+
+// 显示资源空状态
+function showResourceEmptyState(message) {
+  const container = document.getElementById('resourceList');
+  container.innerHTML = `
+    <div class="empty-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
       </svg>
       <p>${message}</p>
     </div>
@@ -290,6 +404,17 @@ async function deletePage(id) {
     await loadPages();
   } catch (error) {
     console.error('删除页面失败:', error);
+    alert('删除失败，请重试');
+  }
+}
+
+// 删除单个资源
+async function deleteResource(id) {
+  try {
+    await chrome.runtime.sendMessage({ type: 'DELETE_RESOURCE', id });
+    await loadResources();
+  } catch (error) {
+    console.error('删除资源失败:', error);
     alert('删除失败，请重试');
   }
 }
@@ -445,11 +570,13 @@ async function uploadSelected() {
 // 全选
 function selectAll() {
   document.querySelectorAll('.page-checkbox').forEach(cb => cb.checked = true);
+  document.querySelectorAll('.resource-checkbox').forEach(cb => cb.checked = true);
 }
 
 // 取消全选
 function deselectAll() {
   document.querySelectorAll('.page-checkbox').forEach(cb => cb.checked = false);
+  document.querySelectorAll('.resource-checkbox').forEach(cb => cb.checked = false);
 }
 
 // 打开设置页面
@@ -546,6 +673,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 加载页面列表
   await loadPages();
+  
+  // 加载资源列表
+  await loadResources();
 
   // 绑定事件
   document.getElementById('saveCurrentBtn').addEventListener('click', saveCurrentPage);
