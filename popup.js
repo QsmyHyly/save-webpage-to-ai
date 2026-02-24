@@ -7,38 +7,6 @@ let isTargetPage = false;
 let currentTab = null;
 let currentPlatform = ''; // 'deepseek' | 'qianwen' | ''
 
-// 格式化文件大小
-function formatSize(bytes) {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
-
-function guessMimeType(url) {
-  const ext = url.split('.').pop().split('?')[0].toLowerCase();
-  const mimeTypes = {
-    'png': 'image/png',
-    'jpg': 'image/jpeg',
-    'jpeg': 'image/jpeg',
-    'gif': 'image/gif',
-    'svg': 'image/svg+xml',
-    'webp': 'image/webp',
-    'ico': 'image/x-icon'
-  };
-  return mimeTypes[ext] || 'image/*';
-}
-
-/**
- * 将元数据以 HTML 注释形式添加到原始 HTML 内容最前面
- * @param {string} originalHtml - 原始 HTML 内容
- * @param {Object} metadata - 元数据对象
- * @returns {string} 包装后的 HTML
- */
-function wrapHtmlWithMetadata(originalHtml, metadata) {
-  const metaComment = `<!--\n  PageMetadata: ${JSON.stringify(metadata, null, 2)}\n-->`;
-  return metaComment + '\n' + originalHtml;
-}
-
 /**
  * 下载单个页面为 HTML 文件
  * @param {Object} page - 页面对象
@@ -67,24 +35,6 @@ async function downloadPage(page) {
   } catch (error) {
     console.error('下载失败:', error);
     alert('下载失败: ' + error.message);
-  }
-}
-
-/**
- * 批量下载选中的页面
- */
-async function downloadSelected() {
-  const selected = getSelectedPages();
-  if (selected.length === 0) {
-    alert('请至少选择一个页面');
-    return;
-  }
-
-  for (let i = 0; i < selected.length; i++) {
-    await downloadPage(selected[i]);
-    if (i < selected.length - 1) {
-      await new Promise(r => setTimeout(r, 200));
-    }
   }
 }
 
@@ -321,7 +271,7 @@ function renderResourceList() {
         <button class="btn btn-danger delete-resource" data-id="${resource.id}">删除</button>
       </div>
     `;
-
+    
     // 为整个列表项添加点击事件（切换复选框）
     div.addEventListener('click', (event) => {
       if (event.target.closest('.resource-checkbox') || event.target.closest('.delete-resource')) {
@@ -344,57 +294,6 @@ function renderResourceList() {
       await deleteResource(id);
     });
   });
-}
-
-// 获取资源图标
-function getResourceIcon(type) {
-  const icons = {
-    css: '🎨',
-    js: '📜',
-    image: '🖼️',
-    font: '🔤',
-    other: '📄'
-  };
-  return icons[type] || icons.other;
-}
-
-// 显示空状态
-function showEmptyState(message) {
-  const container = document.getElementById('pageList');
-  container.innerHTML = `
-    <div class="empty-state">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-        <polyline points="14 2 14 8 20 8"></polyline>
-        <line x1="16" y1="13" x2="8" y2="13"></line>
-        <line x1="16" y1="17" x2="8" y2="17"></line>
-      </svg>
-      <p>${message}</p>
-    </div>
-  `;
-}
-
-// 显示资源空状态
-function showResourceEmptyState(message) {
-  const container = document.getElementById('resourceList');
-  container.innerHTML = `
-    <div class="empty-state">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-        <polyline points="7 10 12 15 17 10"></polyline>
-        <line x1="12" y1="15" x2="12" y2="3"></line>
-      </svg>
-      <p>${message}</p>
-    </div>
-  `;
-}
-
-// HTML 转义
-function escapeHtml(text) {
-  if (!text) return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
 }
 
 // 删除单个页面
@@ -592,20 +491,6 @@ async function openResourcesManager() {
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: () => {
-        const guessMimeType = (url) => {
-          const ext = url.split('.').pop().split('?')[0].toLowerCase();
-          const mimeTypes = {
-            'png': 'image/png',
-            'jpg': 'image/jpeg',
-            'jpeg': 'image/jpeg',
-            'gif': 'image/gif',
-            'svg': 'image/svg+xml',
-            'webp': 'image/webp',
-            'ico': 'image/x-icon'
-          };
-          return mimeTypes[ext] || 'image/*';
-        };
-        
         const resources = performance.getEntriesByType('resource');
         const pageUrl = location.href;
         
@@ -672,8 +557,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await checkPlatformStatus();
 
   // 加载页面列表
-  await loadPages();
-  
+  await loadPages();  
   // 加载资源列表
   await loadResources();
 
