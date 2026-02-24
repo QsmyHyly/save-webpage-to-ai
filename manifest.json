@@ -30,7 +30,7 @@
   "content_scripts": [
     {
       "matches": ["https://chat.deepseek.com/*"],
-      "js": ["constants.js", "content-utils.js", "deepseek-content.js"],
+      "js": ["logger.js", "constants.js", "content-utils.js", "deepseek-content.js"],
       "run_at": "document_end"
     },
     {
@@ -38,8 +38,14 @@
         "https://*.qianwen.com/*",
         "https://*.qwen.ai/*"
       ],
-      "js": ["constants.js", "content-utils.js", "qianwen-uploader.js"],
+      "js": ["logger.js", "constants.js", "content-utils.js", "qianwen-uploader.js"],
       "run_at": "document_end"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["logger.js"],
+      "matches": ["<all_urls>"]
     }
   ],
   "options_page": "options.html",
