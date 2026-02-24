@@ -16,7 +16,6 @@ async function loadCurrentResources() {
     if (currentResourcesData) {
       currentResources = currentResourcesData.resources;
       renderResources();
-      showPageInfo(currentResourcesData);
     } else {
       currentResources = [];
       renderEmptyState();
