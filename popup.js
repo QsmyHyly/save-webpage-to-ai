@@ -388,6 +388,13 @@ function getSelectedPages() {
   return allPages.filter(p => ids.includes(p.id));
 }
 
+// 获取选中的资源数据
+function getSelectedResources() {
+  const checkboxes = document.querySelectorAll('.resource-checkbox:checked');
+  const ids = Array.from(checkboxes).map(cb => cb.dataset.id);
+  return allResources.filter(r => ids.includes(r.id));
+}
+
 // 删除选中的页面
 async function deleteSelected() {
   const ids = getSelectedIds();
@@ -408,9 +415,12 @@ async function deleteSelected() {
 
 // 上传选中的页面到当前 AI 平台
 async function uploadSelected() {
-  const selected = getSelectedPages();
-  if (selected.length === 0) {
-    alert('请至少选择一个页面');
+  const selectedPages = getSelectedPages();
+  const selectedResources = getSelectedResources();
+  const totalItems = selectedPages.length + selectedResources.length;
+  
+  if (totalItems === 0) {
+    alert('请至少选择一个项目（页面或资源）');
     return;
   }
 
@@ -426,22 +436,19 @@ async function uploadSelected() {
   overlay.classList.add('active');
 
   try {
-    // 向当前 AI 页面内容脚本发送消息
+    // 向当前 AI 页面内容脚本发送消息，合并页面和资源
     chrome.tabs.sendMessage(currentTab.id, {
-      type: 'UPLOAD_PAGES',
-      pages: selected.map(p => ({
-        html: p.html,
-        title: p.title,
-        url: p.url,
-        savedAt: p.savedAt,
-        size: p.size
-      }))
+      type: 'UPLOAD_ITEMS',
+      items: [
+        ...selectedPages.map(p => ({ kind: 'page', data: p })),
+        ...selectedResources.map(r => ({ kind: 'resource', id: r.id }))
+      ]
     }, (response) => {
       overlay.classList.remove('active');
 
       const platformName = currentPlatform === 'deepseek' ? 'DeepSeek' : '通义千问';
       if (response && response.status === 'ok') {
-        alert(`✅ 成功上传 ${response.count} 个页面到 ${platformName}！`);
+        alert(`✅ 成功上传 ${response.count} 个项目到 ${platformName}！`);
       } else {
         alert(`❌ 上传失败，请确保 ${platformName} 页面已加载完成`);
       }
@@ -450,7 +457,7 @@ async function uploadSelected() {
     // 模拟进度更新
     let progress = 0;
     const interval = setInterval(() => {
-      progress += 100 / selected.length / 2;
+      progress += 100 / totalItems / 2;
       if (progress >= 90) {
         clearInterval(interval);
         progress = 90;

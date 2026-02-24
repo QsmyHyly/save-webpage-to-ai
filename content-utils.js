@@ -20,44 +20,45 @@ function wrapHtmlWithMetadata(originalHtml, metadata) {
 }
 
 /**
- * 生成包含资源的完整 HTML
- * @param {Object} page - 页面对象
- * @param {Array} resources - 资源数组
- * @returns {string} 完整的 HTML
+ * 格式化资源元数据注释
+ * @param {Object} metadata - 元数据对象
+ * @param {string} type - 资源类型 (css, js, html, other)
+ * @returns {string} 格式化后的注释
  */
-function generateCompleteHtml(page, resources) {
-  let html = page.html;
+function formatMetadataComment(metadata, type) {
+  const json = JSON.stringify(metadata, null, 2);
+  if (type === 'css') return `/*\n  ResourceMetadata: ${json}\n*/\n`;
+  if (type === 'js') return `// ResourceMetadata: ${json}\n`;
+  return `<!--\n  ResourceMetadata: ${json}\n-->\n`;
+}
+
+/**
+ * 准备文件内容，为文本类型添加元数据注释
+ * @param {Object} resource - 资源对象
+ * @returns {Blob} 处理后的 Blob 对象
+ */
+function prepareFileContent(resource) {
+  const { content, type, metadata, mimeType } = resource;
   
-  // 内联 CSS
-  const cssResources = resources.filter(r => r.type === 'css' && r.content);
-  cssResources.forEach(cssRes => {
-    const styleTag = `<style data-resource-id="${cssRes.id}">\n${cssRes.content}\n</style>`;
-    html = html.replace(
-      `<link href="${cssRes.url}" rel="stylesheet">`,
-      styleTag
-    );
-  });
+  // 文本类型添加元数据注释
+  if (['css', 'js', 'html', 'other'].includes(type) && typeof content === 'string') {
+    const metaComment = formatMetadataComment(metadata, type);
+    return new Blob([metaComment + content], { type: mimeType || 'text/plain' });
+  }
   
-  // 内联 JavaScript
-  const jsResources = resources.filter(r => r.type === 'js' && r.content);
-  jsResources.forEach(jsRes => {
-    const scriptTag = `<script data-resource-id="${jsRes.id}">\n${jsRes.content}\n</script>`;
-    html = html.replace(
-      `<script src="${jsRes.url}">`,
-      scriptTag
-    );
-  });
+  // 二进制（如图片）将 base64 转换为 Blob
+  if (typeof content === 'string' && content.startsWith('data:')) {
+    const [meta, data] = content.split(',');
+    const byteString = atob(data);
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([ab], { type: mimeType || 'application/octet-stream' });
+  }
   
-  // 内联图片
-  const imageResources = resources.filter(r => r.type === 'image' && r.content);
-  imageResources.forEach(imgRes => {
-    html = html.replace(
-      `src="${imgRes.url}"`,
-      `src="${imgRes.content}"`
-    );
-  });
-  
-  return html;
+  return new Blob([content], { type: mimeType || 'application/octet-stream' });
 }
 
 /**
@@ -92,26 +93,41 @@ function showNotification(message) {
 }
 
 /**
- * 上传文件为 HTML 到输入框
- * @param {string} htmlContent - HTML 内容
+ * 查找输入框元素
+ * @returns {Element|null} 输入框元素
+ */
+function findInputBox() {
+  // DeepSeek 输入框
+  let inputBox = document.querySelector('input[type="file"]');
+  if (inputBox) return inputBox;
+  
+  // 通义千问输入框
+  inputBox = document.querySelector('input[type="file"]');
+  return inputBox;
+}
+
+/**
+ * 上传文件到输入框
+ * @param {Blob} blob - 文件内容
  * @param {string} fileName - 文件名
  * @returns {Promise<boolean>} 是否成功
  */
-async function uploadFileAsHTML(htmlContent, fileName) {
-  const file = new File([htmlContent], fileName, { type: 'text/html' });
-  
+async function uploadFile(blob, fileName) {
+  const file = new File([blob], fileName, { type: blob.type });
   const dataTransfer = new DataTransfer();
   dataTransfer.items.add(file);
   
-  const fileInput = document.querySelector('input[type="file"]');
-  if (fileInput) {
-    fileInput.files = dataTransfer.files;
-    const event = new Event('change', { bubbles: true });
-    fileInput.dispatchEvent(event);
-    return true;
+  const inputBox = findInputBox();
+  if (!inputBox) {
+    console.error('未找到文件输入框');
+    return false;
   }
   
-  return false;
+  inputBox.files = dataTransfer.files;
+  const event = new Event('change', { bubbles: true });
+  inputBox.dispatchEvent(event);
+  
+  return true;
 }
 
 /**

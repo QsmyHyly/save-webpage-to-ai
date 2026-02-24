@@ -137,6 +137,15 @@ class DBManager {
     });
   }
 
+  async getResourceById(id) {
+    const store = this.objectStore(DB_CONFIG.RESOURCES_STORE, 'readonly');
+    return new Promise((resolve, reject) => {
+      const req = store.get(id);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
   async saveResource(resource) {
     const store = this.objectStore(DB_CONFIG.RESOURCES_STORE, 'readwrite');
     return new Promise((resolve, reject) => {

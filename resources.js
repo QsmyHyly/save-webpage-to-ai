@@ -202,6 +202,9 @@ async function saveSelectedResources() {
   
   try {
     const resourcesToSave = [];
+    const sourcePageUrl = currentResourcesData.url;
+    const sourcePageTitle = currentResourcesData.title;
+    const savedAt = Date.now();
     
     for (let i = 0; i < selectedResources.length; i++) {
       const resource = selectedResources[i];
@@ -214,7 +217,13 @@ async function saveSelectedResources() {
         resourcesToSave.push({
           ...resource,
           content: content,
-          size: content.length
+          size: content.length,
+          metadata: {
+            ...resource.metadata,
+            sourcePageUrl,
+            sourcePageTitle,
+            savedAt
+          }
         });
       } catch (error) {
         console.error('下载资源失败:', resource.url, error);

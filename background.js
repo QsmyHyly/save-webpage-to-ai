@@ -47,6 +47,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           sendResponse(allResources);
           break;
 
+        case 'GET_RESOURCE_BY_ID':
+          const resource = await dbManager.getResourceById(msg.id);
+          sendResponse(resource);
+          break;
+
         case 'SAVE_RESOURCES':
           const ids = await dbManager.saveResources(msg.resources);
           sendResponse({ status: 'ok', ids });

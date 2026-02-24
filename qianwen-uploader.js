@@ -14,57 +14,65 @@
 
   // 监听来自 popup 的消息
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-    if (msg.type === 'UPLOAD_PAGES') {
+    if (msg.type === 'UPLOAD_ITEMS') {
       (async () => {
-        const pages = msg.pages;
+        const items = msg.items;
         let successCount = 0;
 
-        console.log(`通义千问上传器: 收到上传请求，共 ${pages.length} 个页面`);
-        showNotification(`开始上传 ${pages.length} 个页面...`);
+        console.log(`通义千问上传器: 收到上传请求，共 ${items.length} 个项目`);
+        showNotification(`开始上传 ${items.length} 个项目...`);
 
-        for (let i = 0; i < pages.length; i++) {
-          const page = pages[i];
-          const fileName = `${page.title.replace(/[\\/:*?"<>|]/g, '_')}.html`;
-
-          const resources = await chrome.runtime.sendMessage({
-            type: 'GET_RESOURCES_BY_PAGE_ID',
-            pageId: page.id
-          });
-
-          const completeHtml = generateCompleteHtml(page, resources);
-
-          const metadata = {
-            url: page.url,
-            title: page.title,
-            savedAt: new Date(page.savedAt).toISOString(),
-            originalSize: page.size,
-            resourcesCount: resources.length,
-            resourcesIncluded: resources.map(r => ({
-              type: r.type,
-              url: r.url,
-              size: r.size
-            })),
-            capturedFrom: '保存网页并发送给deepseek或千问'
-          };
-
-          const wrappedHtml = wrapHtmlWithMetadata(completeHtml, metadata);
-
+        for (const item of items) {
           try {
-            const success = await uploadFileAsHTML(wrappedHtml, fileName);
-            if (success) {
+            let blob, fileName;
+
+            if (item.kind === 'page') {
+              // 处理页面
+              const page = item.data;
+              fileName = `${page.title.replace(/[\\/:*?"<>|]/g, '_')}.html`;
+
+              const metadata = {
+                url: page.url,
+                title: page.title,
+                savedAt: new Date(page.savedAt).toISOString(),
+                originalSize: page.size,
+                capturedFrom: '保存网页并发送给deepseek或千问'
+              };
+
+              const wrappedHtml = wrapHtmlWithMetadata(page.html, metadata);
+              blob = new Blob([wrappedHtml], { type: 'text/html' });
+
+            } else if (item.kind === 'resource') {
+              // 处理资源
+              const resource = await chrome.runtime.sendMessage({
+                type: 'GET_RESOURCE_BY_ID',
+                id: item.id
+              });
+
+              if (!resource) {
+                console.error('获取资源失败:', item.id);
+                continue;
+              }
+
+              blob = prepareFileContent(resource);
+              fileName = resource.metadata?.filename || 'resource';
+
+            } else {
+              continue;
+            }
+
+            if (await uploadFile(blob, fileName)) {
               successCount++;
               await new Promise(r => setTimeout(r, 1000));
               triggerSend();
               await new Promise(r => setTimeout(r, 800));
-            } else {
-              console.error('通义千问上传器: 上传失败:', page.title);
             }
           } catch (error) {
             console.error('通义千问上传器: 上传出错', error);
           }
         }
 
-        showNotification(`成功上传 ${successCount}/${pages.length} 个页面`);
+        showNotification(`成功上传 ${successCount}/${items.length} 个项目`);
         sendResponse({ status: 'ok', count: successCount });
       })();
 
