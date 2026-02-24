@@ -93,17 +93,150 @@ function showNotification(message) {
 }
 
 /**
- * 查找输入框元素
+ * 查找发送按钮 - 多重选择器冗余查找
+ * @returns {Element|null} 发送按钮元素
+ */
+function findSendButton() {
+  // DeepSeek 发送按钮选择器（多重冗余）
+  const deepseekSelectors = [
+    // 方案1: aria-label
+    'button[aria-label="发送"]',
+    'button[aria-label="Send"]',
+    // 方案2: 基于角色和 SVG 图标（向上箭头）
+    'div[role="button"]:not([aria-disabled="true"])',
+    'div[role="button"]:not([aria-disabled="false"])',
+    // 方案3: DeepSeek 特定类名
+    '.ds-icon-button:not([aria-disabled="true"])',
+    '.ds-icon-button:not([aria-disabled="false"])',
+    // 方案4: 查找包含向上箭头的按钮
+    'div[role="button"] svg path[d^="M8.3125"]',
+    // 方案5: 通用的发送按钮
+    'button[type="submit"]',
+    // 方案6: 查找包含发送图标的元素
+    '[data-testid="send-button"]',
+    // 方案7: 查找发送按钮容器
+    '.send-button',
+    '.submit-button'
+  ];
+  
+  // 千问发送按钮选择器
+  const qianwenSelectors = [
+    // 方案1: 千问特定类名
+    '.operateBtn-JsB9e2:not(.disabled-ZaDDJC)',
+    '.operateBtn:not(.disabled)',
+    // 方案2: 包含发送图标的元素
+    '[data-icon-type="qwpcicon-sendChat"]',
+    // 方案3: 通用的发送按钮
+    'button[type="submit"]',
+    // 方案4: 查找发送按钮容器
+    '.send-button',
+    '.submit-button',
+    '.send-btn'
+  ];
+  
+  // 合并所有选择器
+  const allSelectors = [...deepseekSelectors, ...qianwenSelectors];
+  
+  for (const selector of allSelectors) {
+    try {
+      const btn = document.querySelector(selector);
+      if (btn && isSendButton(btn)) {
+        console.log('找到发送按钮:', selector, btn);
+        return btn;
+      }
+    } catch (e) {
+      // 忽略无效选择器
+    }
+  }
+  
+  // 最后尝试：查找任何看起来像发送按钮的元素
+  return findSendButtonFallback();
+}
+
+/**
+ * 判断元素是否是发送按钮
+ * @param {Element} btn - 待检测元素
+ * @returns {boolean} 是否是发送按钮
+ */
+function isSendButton(btn) {
+  // 检查是否包含禁用属性
+  if (btn.hasAttribute('aria-disabled') && btn.getAttribute('aria-disabled') === 'true') {
+    return false;
+  }
+  if (btn.disabled) {
+    return false;
+  }
+  
+  // 检查是否包含禁用类
+  const className = btn.className || '';
+  if (typeof className === 'string' && className.includes('disabled')) {
+    return false;
+  }
+  
+  // 检查文本内容
+  const text = btn.textContent?.toLowerCase() || '';
+  if (text.includes('发送') || text.includes('send') || text.includes('提交')) {
+    return true;
+  }
+  
+  // 检查 SVG 图标（向上箭头）
+  const svg = btn.querySelector('svg');
+  if (svg) {
+    const path = svg.querySelector('path');
+    if (path && path.getAttribute('d')) {
+      const d = path.getAttribute('d');
+      // 向上箭头的特征
+      if (d.includes('M8.3125') || d.includes('M7 ') || d.includes('M12')) {
+        return true;
+      }
+    }
+  }
+  
+  return true; // 无法确定时返回 true
+}
+
+/**
+ * 后备发送按钮查找方法
+ * @returns {Element|null}
+ */
+function findSendButtonFallback() {
+  // 查找所有可点击的元素
+  const candidates = document.querySelectorAll('[role="button"], button, div[class*="send"], div[class*="Submit"]');
+  
+  for (const btn of candidates) {
+    if (isSendButton(btn)) {
+      console.log('后备方案找到发送按钮:', btn);
+      return btn;
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * 查找输入框元素 - 多重选择器冗余查找
  * @returns {Element|null} 输入框元素
  */
 function findInputBox() {
-  // DeepSeek 输入框
-  let inputBox = document.querySelector('input[type="file"]');
-  if (inputBox) return inputBox;
+  const selectors = [
+    // DeepSeek 和千问的隐藏 file input
+    'input[type="file"]',
+    // 带 name 属性的
+    'input[name="file"]',
+    // 其他可能的
+    'input[data-testid="file-input"]',
+    'input[data-testid="file-upload"]'
+  ];
   
-  // 通义千问输入框
-  inputBox = document.querySelector('input[type="file"]');
-  return inputBox;
+  for (const selector of selectors) {
+    const input = document.querySelector(selector);
+    if (input) {
+      console.log('找到文件输入框:', selector, input);
+      return input;
+    }
+  }
+  
+  return null;
 }
 
 /**
@@ -123,24 +256,64 @@ async function uploadFile(blob, fileName) {
     return false;
   }
   
-  inputBox.files = dataTransfer.files;
-  const event = new Event('change', { bubbles: true });
-  inputBox.dispatchEvent(event);
+  console.log('设置文件:', fileName, '类型:', blob.type);
   
+  inputBox.files = dataTransfer.files;
+  
+  // 触发 change 事件
+  const changeEvent = new Event('change', { bubbles: true });
+  inputBox.dispatchEvent(changeEvent);
+  
+  // 额外触发 input 事件增强兼容性
+  const inputEvent = new Event('input', { bubbles: true });
+  inputBox.dispatchEvent(inputEvent);
+  
+  console.log('文件上传事件已触发');
   return true;
 }
 
 /**
- * 触发发送按钮点击
- * @param {string} selector - 发送按钮选择器
+ * 等待发送按钮变为可用
+ * @param {number} timeout - 超时时间（毫秒）
+ * @returns {Promise<Element|null>}
  */
-function triggerSend(selector = 'button[aria-label="发送"]') {
-  setTimeout(() => {
-    const sendBtn = document.querySelector(selector);
-    if (sendBtn) {
-      sendBtn.click();
+async function waitForSendButton(timeout = 5000) {
+  const start = Date.now();
+  
+  while (Date.now() - start < timeout) {
+    const sendBtn = findSendButton();
+    if (sendBtn && isSendButton(sendBtn)) {
+      console.log('发送按钮已可用');
+      return sendBtn;
     }
-  }, 100);
+    await new Promise(r => setTimeout(r, 200));
+  }
+  
+  console.log('等待发送按钮超时');
+  return null;
+}
+
+/**
+ * 触发发送按钮点击
+ * @param {string} selector - 发送按钮选择器（已弃用，使用多重查找）
+ */
+async function triggerSend(selector = null) {
+  // 尝试等待发送按钮可用
+  const sendBtn = await waitForSendButton(3000);
+  
+  if (sendBtn) {
+    console.log('点击发送按钮');
+    sendBtn.click();
+  } else {
+    // 如果等待失败，直接尝试查找并点击
+    const btn = findSendButton();
+    if (btn) {
+      console.log('直接点击发送按钮');
+      btn.click();
+    } else {
+      console.error('未能找到发送按钮');
+    }
+  }
 }
 
 // 添加动画样式
