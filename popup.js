@@ -294,20 +294,23 @@ async function saveCurrentPage() {
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: (blockedSelectors) => {
-        // 移除屏蔽的元素
+        // 克隆整个文档（深拷贝），避免修改原始页面
+        const clonedDoc = document.documentElement.cloneNode(true);
+
+        // 在克隆的副本中移除屏蔽的元素
         blockedSelectors.forEach(sel => {
           try {
-            document.querySelectorAll(sel).forEach(el => el.remove());
+            clonedDoc.querySelectorAll(sel).forEach(el => el.remove());
           } catch (e) {
             // 忽略无效选择器
           }
         });
 
         return {
-          html: document.documentElement.outerHTML,
+          html: clonedDoc.outerHTML,
           url: location.href,
           title: document.title,
-          size: new Blob([document.documentElement.outerHTML]).size
+          size: new Blob([clonedDoc.outerHTML]).size
         };
       },
       args: [selectors]
