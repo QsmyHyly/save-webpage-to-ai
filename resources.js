@@ -50,6 +50,50 @@ function showPageInfo(pageData) {
   container.appendChild(infoDiv);
 }
 
+function renderResources() {
+  const container = document.getElementById('resourcesList');
+  
+  showPageInfo(currentResourcesData);
+  
+  if (currentResources.length === 0) {
+    const emptyDiv = document.createElement('div');
+    emptyDiv.className = 'empty-state';
+    emptyDiv.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </svg>
+      <p>该页面没有外部资源</p>
+    `;
+    container.appendChild(emptyDiv);
+    return;
+  }
+  
+  currentResources.forEach(resource => {
+    const div = document.createElement('div');
+    div.className = 'resource-item';
+    
+    const icon = getResourceIcon(resource.type);
+    const sizeText = resource.size ? formatSize(resource.size) : '未知大小';
+    const durationText = resource.duration ? `加载时间: ${resource.duration.toFixed(0)}ms` : '';
+    
+    div.innerHTML = `
+      <input type="checkbox" class="resource-checkbox" data-id="${resource.id}">
+      <div class="resource-icon ${resource.type}">${icon}</div>
+      <div class="resource-info">
+        <div class="resource-url" title="${escapeHtml(resource.url)}">${escapeHtml(resource.url)}</div>
+        <div class="resource-meta">
+          ${escapeHtml(resource.metadata.filename || '')} | ${sizeText}
+          ${durationText ? `<span style="margin-left: 8px; color: #999;">${durationText}</span>` : ''}
+        </div>
+      </div>
+    `;
+    
+    container.appendChild(div);
+  });
+}
+
 function renderEmptyState() {
   const container = document.getElementById('resourcesList');
   container.innerHTML = `

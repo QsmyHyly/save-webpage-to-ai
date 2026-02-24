@@ -462,10 +462,23 @@ async function openResourcesManager() {
   try {
     const tab = await getCurrentTab();
     
-    // 获取当前页面的资源
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: () => {
+        const guessMimeType = (url) => {
+          const ext = url.split('.').pop().split('?')[0].toLowerCase();
+          const mimeTypes = {
+            'png': 'image/png',
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'gif': 'image/gif',
+            'svg': 'image/svg+xml',
+            'webp': 'image/webp',
+            'ico': 'image/x-icon'
+          };
+          return mimeTypes[ext] || 'image/*';
+        };
+        
         const resources = performance.getEntriesByType('resource');
         const pageUrl = location.href;
         
@@ -515,12 +528,10 @@ async function openResourcesManager() {
     
     const pageData = results[0].result;
     
-    // 保存到 chrome.storage，供 resources.html 使用
     await chrome.storage.local.set({
       currentResources: pageData
     });
     
-    // 打开资源管理页面
     chrome.tabs.create({ url: chrome.runtime.getURL('resources.html') });
   } catch (error) {
     console.error('打开资源管理页面失败:', error);
