@@ -159,8 +159,8 @@ function renderProfileList() {
         </div>
         <div class="profile-actions">
           ${isActive ? '' : `<button class="profile-btn profile-activate" data-id="${id}">使用</button>`}
+          <button class="profile-btn profile-duplicate" data-id="${id}" title="复制">📋</button>
           ${isDefault ? '' : `
-            <button class="profile-btn profile-duplicate" data-id="${id}" title="复制">📋</button>
             <button class="profile-btn profile-rename" data-id="${id}" title="重命名">✏️</button>
             <button class="profile-btn profile-delete" data-id="${id}" title="删除">🗑️</button>
           `}
