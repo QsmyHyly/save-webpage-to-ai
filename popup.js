@@ -73,6 +73,21 @@ async function downloadSelected() {
   }
 }
 
+/**
+ * 获取启用的屏蔽选择器列表
+ */
+async function getEnabledSelectors() {
+  const [idResult, classResult] = await Promise.all([
+    chrome.storage.sync.get('idRules'),
+    chrome.storage.sync.get('classRules')
+  ]);
+
+  const idRules = idResult.idRules || [];
+  const classRules = classResult.classRules || [];
+
+  return [...idRules.filter(r => r.enabled), ...classRules.filter(r => r.enabled)].map(r => r.selector);
+}
+
 // 获取当前标签页
 async function getCurrentTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -255,18 +270,29 @@ async function saveCurrentPage() {
 
   try {
     const tab = await getCurrentTab();
+    const selectors = await getEnabledSelectors();
 
-    // 执行脚本获取页面内容
+    // 执行脚本获取页面内容（先移除屏蔽元素）
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      func: () => {
+      func: (blockedSelectors) => {
+        // 移除屏蔽的元素
+        blockedSelectors.forEach(sel => {
+          try {
+            document.querySelectorAll(sel).forEach(el => el.remove());
+          } catch (e) {
+            // 忽略无效选择器
+          }
+        });
+
         return {
           html: document.documentElement.outerHTML,
           url: location.href,
           title: document.title,
           size: new Blob([document.documentElement.outerHTML]).size
         };
-      }
+      },
+      args: [selectors]
     });
 
     const pageData = results[0].result;
@@ -391,6 +417,11 @@ function deselectAll() {
   document.querySelectorAll('.page-checkbox').forEach(cb => cb.checked = false);
 }
 
+// 打开设置页面
+function openSettings() {
+  chrome.tabs.create({ url: chrome.runtime.getURL('options.html') });
+}
+
 // 初始化
 document.addEventListener('DOMContentLoaded', async () => {
   // 检查平台状态
@@ -406,4 +437,5 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('downloadSelectedBtn').addEventListener('click', downloadSelected);
   document.getElementById('deleteSelectedBtn').addEventListener('click', deleteSelected);
   document.getElementById('uploadSelectedBtn').addEventListener('click', uploadSelected);
+  document.getElementById('settingsBtn').addEventListener('click', openSettings);
 });
