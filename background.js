@@ -158,12 +158,21 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
           sendResponse({ status: 'ok' });
           break;
 
+        case MESSAGE_TYPES.RESET_DB:
+          await dbManager.init();
+          sendResponse({ status: 'ok' });
+          break;
+
         default:
           sendResponse({ status: 'error', message: '未知消息类型' });
       }
     } catch (error) {
       logger.error('处理消息失败:', error);
-      sendResponse({ status: 'error', message: error.message });
+      if (msg.type === MESSAGE_TYPES.GET_ALL_PAGES || msg.type === MESSAGE_TYPES.GET_ALL_RESOURCES || msg.type === MESSAGE_TYPES.GET_RESOURCES_BY_PAGE_ID || msg.type === MESSAGE_TYPES.GET_RESOURCE_BY_ID || msg.type === MESSAGE_TYPES.FIND_PAGE_BY_URL) {
+        sendResponse([]);
+      } else {
+        sendResponse({ status: 'error', message: error.message });
+      }
     }
   })();
 

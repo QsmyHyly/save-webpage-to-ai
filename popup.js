@@ -67,24 +67,58 @@ function updateStatusUI() {
 }
 
 // 加载页面列表
-async function loadPages() {
+async function loadPages(retry = true) {
   try {
-    allPages = await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.GET_ALL_PAGES });
+    const result = await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.GET_ALL_PAGES });
+    if (result && result.status === 'error') {
+      throw new Error(result.message || '获取页面列表失败');
+    }
+    if (!Array.isArray(result)) {
+      logger.error('获取页面列表返回非数组:', result);
+      throw new Error('返回数据格式错误');
+    }
+    allPages = result;
     renderPages();
   } catch (error) {
     logger.error('加载页面列表失败:', error);
-    window.showEmptyState('pageList', '加载失败，请重试');
+    if (retry) {
+      logger.info('尝试重置数据库连接并重试...');
+      try {
+        await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.RESET_DB });
+        return loadPages(false);
+      } catch (resetError) {
+        logger.error('重置数据库失败:', resetError);
+      }
+    }
+    window.showEmptyState('pageList', '加载失败，请刷新重试');
   }
 }
 
 // 加载资源列表
-async function loadResources() {
+async function loadResources(retry = true) {
   try {
-    allResources = await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.GET_ALL_RESOURCES });
+    const result = await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.GET_ALL_RESOURCES });
+    if (result && result.status === 'error') {
+      throw new Error(result.message || '获取资源列表失败');
+    }
+    if (!Array.isArray(result)) {
+      logger.error('获取资源列表返回非数组:', result);
+      throw new Error('返回数据格式错误');
+    }
+    allResources = result;
     renderResources();
   } catch (error) {
     logger.error('加载资源列表失败:', error);
-    window.showResourceEmptyState('resourceList', '加载失败，请重试');
+    if (retry) {
+      logger.info('尝试重置数据库连接并重试...');
+      try {
+        await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.RESET_DB });
+        return loadResources(false);
+      } catch (resetError) {
+        logger.error('重置数据库失败:', resetError);
+      }
+    }
+    window.showResourceEmptyState('resourceList', '加载失败，请刷新重试');
   }
 }
 
