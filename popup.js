@@ -69,7 +69,7 @@ function updateStatusUI() {
 // 加载页面列表
 async function loadPages() {
   try {
-    allPages = await chrome.runtime.sendMessage({ type: 'GET_ALL_PAGES' });
+    allPages = await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.GET_ALL_PAGES });
     renderPages();
   } catch (error) {
     logger.error('加载页面列表失败:', error);
@@ -80,7 +80,7 @@ async function loadPages() {
 // 加载资源列表
 async function loadResources() {
   try {
-    allResources = await chrome.runtime.sendMessage({ type: 'GET_ALL_RESOURCES' });
+    allResources = await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.GET_ALL_RESOURCES });
     renderResources();
   } catch (error) {
     logger.error('加载资源列表失败:', error);
@@ -237,44 +237,72 @@ function getSelectedResources() {
 // 下载单个页面
 async function downloadPage(id) {
   const page = allPages.find(p => p.id === id);
-  if (!page) return;
+  if (!page) throw new Error('页面不存在');
   
-  try {
-    const metadata = {
-      url: page.url,
-      title: page.title,
-      savedAt: new Date(page.savedAt).toISOString(),
-      originalSize: page.size
-    };
-    
-    const wrappedHtml = wrapHtmlWithMetadata(page.html, metadata);
-    const blob = new Blob([wrappedHtml], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const fileName = `${page.title.replace(/[\\/:*?"<>|]/g, '_')}.html`;
-    
-    await chrome.downloads.download({
+  const metadata = {
+    url: page.url,
+    title: page.title,
+    savedAt: new Date(page.savedAt).toISOString(),
+    originalSize: page.size
+  };
+  
+  const wrappedHtml = wrapHtmlWithMetadata(page.html, metadata);
+  const blob = new Blob([wrappedHtml], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const fileName = `${page.title.replace(/[\\/:*?"<>|]/g, '_')}.html`;
+  
+  return new Promise((resolve, reject) => {
+    chrome.downloads.download({
       url: url,
       filename: fileName,
       saveAs: false
+    }, (downloadId) => {
+      URL.revokeObjectURL(url);
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+      } else {
+        resolve(downloadId);
+      }
     });
-  } catch (error) {
-    logger.error('下载失败:', error);
-    alert('下载失败: ' + error.message);
-  }
+  });
 }
 
 // 下载选中的页面
 async function downloadSelected() {
   const selected = getSelectedPages();
+  if (selected.length === 0) {
+    alert('请至少选择一个页面');
+    return;
+  }
+  
+  let successCount = 0;
+  let errorCount = 0;
+  
   for (const page of selected) {
-    await downloadPage(page.id);
+    try {
+      await downloadPage(page.id);
+      successCount++;
+    } catch (error) {
+      errorCount++;
+      logger.error('下载页面失败:', page.title, error);
+    }
+  }
+  
+  if (errorCount > 0) {
+    alert(`下载完成：成功 ${successCount} 个，失败 ${errorCount} 个`);
+  } else {
+    alert(`成功下载 ${successCount} 个页面`);
   }
 }
 
 // 删除单个页面
 async function deletePage(id) {
+  if (!confirm('确定要删除这个页面吗？')) {
+    return;
+  }
+  
   try {
-    await chrome.runtime.sendMessage({ type: 'DELETE_PAGE', id });
+    await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.DELETE_PAGE, id });
     await loadPages();
   } catch (error) {
     logger.error('删除页面失败:', error);
@@ -284,8 +312,12 @@ async function deletePage(id) {
 
 // 删除单个资源
 async function deleteResource(id) {
+  if (!confirm('确定要删除这个资源吗？')) {
+    return;
+  }
+  
   try {
-    await chrome.runtime.sendMessage({ type: 'DELETE_RESOURCE', id });
+    await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.DELETE_RESOURCE, id });
     await loadResources();
   } catch (error) {
     logger.error('删除资源失败:', error);
@@ -301,8 +333,12 @@ async function deleteSelected() {
     return;
   }
 
+  if (!confirm(`确定要删除选中的 ${ids.length} 个页面吗？`)) {
+    return;
+  }
+
   for (const id of ids) {
-    await chrome.runtime.sendMessage({ type: 'DELETE_PAGE', id });
+    await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.DELETE_PAGE, id });
   }
   await loadPages();
 }
@@ -330,7 +366,7 @@ async function saveCurrentPage() {
     const { html, title, url } = results[0].result;
     
     await chrome.runtime.sendMessage({
-      type: 'SAVE_PAGE',
+      type: MESSAGE_TYPES.SAVE_PAGE,
       data: { html, title, url, size: html.length }
     });
     
@@ -445,8 +481,64 @@ function openSettings() {
 }
 
 // 打开资源管理页面
-function openResourcesManager() {
-  chrome.tabs.create({ url: chrome.runtime.getURL('resources.html') });
+async function openResourcesManager() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => {
+        const resources = [];
+        const seen = new Set();
+        
+        performance.getEntriesByType('resource').forEach(entry => {
+          if (seen.has(entry.name)) return;
+          seen.add(entry.name);
+          
+          let type = 'other';
+          const url = entry.name.toLowerCase();
+          if (url.endsWith('.css') || url.includes('.css?')) type = 'css';
+          else if (url.endsWith('.js') || url.includes('.js?')) type = 'js';
+          else if (url.match(/\.(png|jpg|jpeg|gif|svg|webp|ico)/)) type = 'image';
+          else if (url.match(/\.(woff|woff2|ttf|eot)/)) type = 'font';
+          
+          resources.push({
+            id: `res-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            url: entry.name,
+            type: type,
+            size: entry.transferSize || entry.encodedBodySize || 0,
+            duration: entry.duration,
+            metadata: {
+              filename: entry.name.split('/').pop().split('?')[0] || 'unknown'
+            }
+          });
+        });
+        
+        return {
+          resources: resources,
+          pageInfo: {
+            url: location.href,
+            title: document.title
+          }
+        };
+      }
+    });
+    
+    const { resources, pageInfo } = results[0].result;
+    
+    await chrome.storage.local.set({
+      currentResources: {
+        resources: resources,
+        url: pageInfo.url,
+        title: pageInfo.title
+      }
+    });
+    
+    chrome.tabs.create({ url: chrome.runtime.getURL('resources.html') });
+  } catch (error) {
+    logger.error('获取页面资源失败:', error);
+    alert('获取页面资源失败: ' + error.message);
+  }
 }
 
 // 绑定所有事件

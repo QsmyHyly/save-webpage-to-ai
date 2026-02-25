@@ -1,6 +1,9 @@
 // content-utils.js - 内容脚本共享工具模块
 // 包含 deepseek-content.js 和 qianwen-uploader.js 的公共函数
 
+// 注意：此文件中的 formatSize 和 wrapHtmlWithMetadata 与 common-utils.js 中的函数功能相同
+// 但由于内容脚本运行在隔离环境，无法直接使用 common-utils.js，故保留此实现
+
 // 格式化文件大小
 function formatSize(bytes) {
   if (bytes < 1024) return bytes + ' B';

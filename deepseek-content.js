@@ -49,9 +49,8 @@
               blob = new Blob([wrappedHtml], { type: 'text/html' });
 
             } else if (item.kind === 'resource') {
-              // 处理资源
               var resource = await chrome.runtime.sendMessage({
-                type: 'GET_RESOURCE_BY_ID',
+                type: MESSAGE_TYPES.GET_RESOURCE_BY_ID,
                 id: item.id
               });
 

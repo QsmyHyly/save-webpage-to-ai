@@ -59,7 +59,7 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
   (async function() {
     try {
       switch (msg.type) {
-        case 'GET_ALL_PAGES':
+        case MESSAGE_TYPES.GET_ALL_PAGES:
           var pages = await withTimeout(
             dbManager.getAllPages(),
             MESSAGE_TIMEOUT,
@@ -68,7 +68,7 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
           sendResponse(pages);
           break;
 
-        case 'SAVE_PAGE':
+        case MESSAGE_TYPES.SAVE_PAGE:
           var id = await withTimeout(
             dbManager.savePage(msg.data),
             MESSAGE_TIMEOUT,
@@ -77,7 +77,7 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
           sendResponse({ status: 'ok', id: id });
           break;
 
-        case 'DELETE_PAGE':
+        case MESSAGE_TYPES.DELETE_PAGE:
           await withTimeout(
             dbManager.deletePage(msg.id),
             MESSAGE_TIMEOUT,
@@ -86,7 +86,7 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
           sendResponse({ status: 'ok' });
           break;
 
-        case 'FIND_PAGE_BY_URL':
+        case MESSAGE_TYPES.FIND_PAGE_BY_URL:
           var found = await withTimeout(
             dbManager.findPageByUrl(msg.url),
             MESSAGE_TIMEOUT,
@@ -95,7 +95,7 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
           sendResponse(found);
           break;
 
-        case 'CLEAR_ALL_PAGES':
+        case MESSAGE_TYPES.CLEAR_ALL_PAGES:
           await withTimeout(
             dbManager.clearAllPages(),
             MESSAGE_TIMEOUT,
@@ -104,7 +104,7 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
           sendResponse({ status: 'ok' });
           break;
 
-        case 'GET_RESOURCES_BY_PAGE_ID':
+        case MESSAGE_TYPES.GET_RESOURCES_BY_PAGE_ID:
           var resources = await withTimeout(
             dbManager.getResourcesByPageId(msg.pageId),
             MESSAGE_TIMEOUT,
@@ -113,7 +113,7 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
           sendResponse(resources);
           break;
 
-        case 'GET_ALL_RESOURCES':
+        case MESSAGE_TYPES.GET_ALL_RESOURCES:
           var allResources = await withTimeout(
             dbManager.getAllResources(),
             MESSAGE_TIMEOUT,
@@ -122,7 +122,7 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
           sendResponse(allResources);
           break;
 
-        case 'GET_RESOURCE_BY_ID':
+        case MESSAGE_TYPES.GET_RESOURCE_BY_ID:
           var resource = await withTimeout(
             dbManager.getResourceById(msg.id),
             MESSAGE_TIMEOUT,
@@ -131,7 +131,7 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
           sendResponse(resource);
           break;
 
-        case 'SAVE_RESOURCES':
+        case MESSAGE_TYPES.SAVE_RESOURCES:
           var ids = await withTimeout(
             dbManager.saveResources(msg.resources),
             MESSAGE_TIMEOUT,
@@ -140,7 +140,7 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
           sendResponse({ status: 'ok', ids: ids });
           break;
 
-        case 'DELETE_RESOURCE':
+        case MESSAGE_TYPES.DELETE_RESOURCE:
           await withTimeout(
             dbManager.deleteResource(msg.id),
             MESSAGE_TIMEOUT,
@@ -149,7 +149,7 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
           sendResponse({ status: 'ok' });
           break;
 
-        case 'DELETE_RESOURCES_BY_PAGE_ID':
+        case MESSAGE_TYPES.DELETE_RESOURCES_BY_PAGE_ID:
           await withTimeout(
             dbManager.deleteResourcesByPageId(msg.pageId),
             MESSAGE_TIMEOUT,

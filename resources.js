@@ -3,27 +3,129 @@ let currentResources = [];
 let currentPageId = null;
 let currentResourcesData = null;
 
+// 检查 MESSAGE_TYPES 是否已定义
+if (typeof MESSAGE_TYPES === 'undefined') {
+  console.error('MESSAGE_TYPES 未定义，请检查 constants.js 是否已加载');
+  var MESSAGE_TYPES = {
+    GET_ALL_RESOURCES: 'GET_ALL_RESOURCES',
+    SAVE_RESOURCES: 'SAVE_RESOURCES',
+    DELETE_RESOURCE: 'DELETE_RESOURCE'
+  };
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   await loadCurrentResources();
   bindEvents();
 });
 
 async function loadCurrentResources() {
+  const container = document.getElementById('resourcesList');
+  container.innerHTML = '';
+  
   try {
     const result = await chrome.storage.local.get('currentResources');
     currentResourcesData = result.currentResources;
     
-    if (currentResourcesData) {
+    if (currentResourcesData && currentResourcesData.resources) {
       currentResources = currentResourcesData.resources;
       renderResources();
     } else {
-      currentResources = [];
-      renderEmptyState();
+        const allResources = await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.GET_ALL_RESOURCES });
+        if (allResources && allResources.length > 0) {
+          currentResources = allResources;
+          renderAllResources();
+      } else {
+        currentResources = [];
+        showResourceEmptyState('resourcesList', '没有可显示的资源');
+      }
     }
   } catch (error) {
     console.error('加载当前资源失败:', error);
-    renderEmptyState();
+    showResourceEmptyState('resourcesList', '加载失败: ' + error.message);
+  };
+}
+
+function renderAllResources() {
+  const container = document.getElementById('resourcesList');
+  container.innerHTML = '';
+  
+  if (currentResources.length === 0) {
+    showResourceEmptyState('resourcesList', '没有保存的资源');
+    return;
   }
+  
+  const pageGroups = {};
+  currentResources.forEach(resource => {
+    let pageId = resource.metadata?.sourcePageUrl || 'unknown';
+    let pageTitle = resource.metadata?.sourcePageTitle || '未知页面';
+    
+    if (!pageGroups[pageId]) {
+      pageGroups[pageId] = {
+        title: pageTitle,
+        url: pageId,
+        resources: []
+      };
+    }
+    pageGroups[pageId].resources.push(resource);
+  });
+  
+  Object.keys(pageGroups).forEach(pageId => {
+    const group = pageGroups[pageId];
+    const pageHeader = document.createElement('div');
+    pageHeader.style.cssText = `
+      background: #f0f0f0;
+      padding: 8px 12px;
+      margin: 16px 0 8px 0;
+      border-radius: 4px;
+      font-weight: 600;
+      color: #333;
+      display: flex;
+      justify-content: space-between;
+    `;
+    pageHeader.innerHTML = `
+      <span>📄 ${escapeHtml(group.title)}</span>
+      <span style="font-size: 12px; color: #666;">${escapeHtml(group.url)}</span>
+    `;
+    container.appendChild(pageHeader);
+    
+    group.resources.forEach(resource => {
+      const div = createResourceElement(resource);
+      container.appendChild(div);
+    });
+  });
+}
+
+function createResourceElement(resource) {
+  const div = document.createElement('div');
+  div.className = 'resource-item';
+  div.style.cursor = 'pointer';
+  
+  const icon = getResourceIcon(resource.type);
+  const sizeText = resource.size ? formatSize(resource.size) : '未知大小';
+  const durationText = resource.duration ? `加载时间: ${resource.duration.toFixed(0)}ms` : '';
+  
+  div.innerHTML = `
+    <input type="checkbox" class="resource-checkbox" data-id="${resource.id}">
+    <div class="resource-icon ${resource.type}">${icon}</div>
+    <div class="resource-info">
+      <div class="resource-url" title="${escapeHtml(resource.url)}">${escapeHtml(resource.url)}</div>
+      <div class="resource-meta">
+        ${escapeHtml(resource.metadata?.filename || '')} | ${sizeText}
+        ${durationText ? `<span style="margin-left: 8px; color: #999;">${durationText}</span>` : ''}
+      </div>
+    </div>
+  `;
+  
+  div.addEventListener('click', (e) => {
+    if (e.target.classList.contains('resource-checkbox')) {
+      return;
+    }
+    const checkbox = div.querySelector('.resource-checkbox');
+    checkbox.checked = !checkbox.checked;
+    updateSaveButtonState();
+  });
+  
+  return div;
 }
 
 function showPageInfo(pageData) {
@@ -55,81 +157,31 @@ function renderResources() {
   showPageInfo(currentResourcesData);
   
   if (currentResources.length === 0) {
-    const emptyDiv = document.createElement('div');
-    emptyDiv.className = 'empty-state';
-    emptyDiv.innerHTML = `
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-        <polyline points="7 10 12 15 17 10"></polyline>
-        <line x1="12" y1="15" x2="12" y2="3"></line>
-      </svg>
-      <p>该页面没有外部资源</p>
-    `;
-    container.appendChild(emptyDiv);
+    showResourceEmptyState('resourcesList', '该页面没有外部资源');
     return;
   }
   
   currentResources.forEach(resource => {
-    const div = document.createElement('div');
-    div.className = 'resource-item';
-    div.style.cursor = 'pointer';
-    
-    const icon = getResourceIcon(resource.type);
-    const sizeText = resource.size ? formatSize(resource.size) : '未知大小';
-    const durationText = resource.duration ? `加载时间: ${resource.duration.toFixed(0)}ms` : '';
-    
-    div.innerHTML = `
-      <input type="checkbox" class="resource-checkbox" data-id="${resource.id}">
-      <div class="resource-icon ${resource.type}">${icon}</div>
-      <div class="resource-info">
-        <div class="resource-url" title="${escapeHtml(resource.url)}">${escapeHtml(resource.url)}</div>
-        <div class="resource-meta">
-          ${escapeHtml(resource.metadata.filename || '')} | ${sizeText}
-          ${durationText ? `<span style="margin-left: 8px; color: #999;">${durationText}</span>` : ''}
-        </div>
-      </div>
-    `;
-    
-    div.addEventListener('click', (e) => {
-      if (e.target.classList.contains('resource-checkbox')) {
-        return;
-      }
-      const checkbox = div.querySelector('.resource-checkbox');
-      checkbox.checked = !checkbox.checked;
-      updateSaveButtonState();
-    });
-    
+    const div = createResourceElement(resource);
     container.appendChild(div);
   });
 }
 
-function renderEmptyState() {
-  const container = document.getElementById('resourcesList');
-  container.innerHTML = `
-    <div class="empty-state">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-        <polyline points="7 10 12 15 17 10"></polyline>
-        <line x1="12" y1="15" x2="12" y2="3"></line>
-      </svg>
-      <p>该页面没有外部资源</p>
-    </div>
-  `;
-}
-
-function getResourceIcon(type) {
-  const icons = {
-    css: '🎨',
-    js: '📜',
-    image: '🖼️',
-    font: '🔤',
-    other: '📄'
-  };
-  return icons[type] || icons.other;
-}
-
 function guessMimeType(url) {
   const ext = url.split('.').pop().split('?')[0].toLowerCase();
+  if (typeof MIME_TYPES !== 'undefined') {
+    const mimeMap = {
+      'png': MIME_TYPES.PNG,
+      'jpg': MIME_TYPES.JPG,
+      'jpeg': MIME_TYPES.JPEG,
+      'gif': MIME_TYPES.GIF,
+      'svg': MIME_TYPES.SVG,
+      'webp': MIME_TYPES.WEBP,
+      'ico': MIME_TYPES.ICO
+    };
+    return mimeMap[ext] || 'image/*';
+  }
+  
   const mimeTypes = {
     'png': 'image/png',
     'jpg': 'image/jpeg',
@@ -140,20 +192,6 @@ function guessMimeType(url) {
     'ico': 'image/x-icon'
   };
   return mimeTypes[ext] || 'image/*';
-}
-
-function formatSize(bytes) {
-  if (!bytes) return '0 B';
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
-
-function escapeHtml(text) {
-  if (!text) return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
 }
 
 async function fetchResource(url) {
@@ -186,6 +224,11 @@ function blobToBase64(blob) {
 }
 
 async function saveSelectedResources() {
+  if (!currentResourcesData) {
+    alert('无法获取页面信息，请重新打开资源管理器');
+    return;
+  }
+  
   const checkboxes = document.querySelectorAll('.resource-checkbox:checked');
   if (checkboxes.length === 0) {
     alert('请至少选择一个资源');
@@ -233,7 +276,7 @@ async function saveSelectedResources() {
     
     if (resourcesToSave.length > 0) {
       await chrome.runtime.sendMessage({
-        type: 'SAVE_RESOURCES',
+        type: MESSAGE_TYPES.SAVE_RESOURCES,
         resources: resourcesToSave
       });
       
@@ -256,7 +299,7 @@ async function deleteResource(savedId) {
   
   try {
     await chrome.runtime.sendMessage({
-      type: 'DELETE_RESOURCE',
+      type: MESSAGE_TYPES.DELETE_RESOURCE,
       id: savedId
     });
     await loadCurrentResources();

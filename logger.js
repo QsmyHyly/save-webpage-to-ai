@@ -40,6 +40,9 @@
       timestamp: Date.now(),
       message: Array.prototype.slice.call(args).map(function(arg) {
         try {
+          if (arg instanceof Error) {
+            return arg.message + ' (stack: ' + arg.stack + ')';
+          }
           if (typeof arg === 'object') {
             return JSON.stringify(arg);
           }

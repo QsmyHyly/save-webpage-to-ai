@@ -181,13 +181,39 @@ class DBManager {
   async deleteResourcesByPageId(pageId) {
     const store = this.objectStore(DB_CONFIG.RESOURCES_STORE, 'readwrite');
     const index = store.index('pageId');
+    
     return new Promise((resolve, reject) => {
       const req = index.getAllKeys(pageId);
+      
       req.onsuccess = () => {
         const keys = req.result;
-        keys.forEach(key => store.delete(key));
-        resolve();
+        if (keys.length === 0) {
+          resolve();
+          return;
+        }
+        
+        let completed = 0;
+        let hasError = false;
+        
+        keys.forEach(key => {
+          const deleteReq = store.delete(key);
+          
+          deleteReq.onsuccess = () => {
+            completed++;
+            if (completed === keys.length && !hasError) {
+              resolve();
+            }
+          };
+          
+          deleteReq.onerror = (e) => {
+            if (!hasError) {
+              hasError = true;
+              reject(e.target.error);
+            }
+          };
+        });
       };
+      
       req.onerror = () => reject(req.error);
     });
   }
