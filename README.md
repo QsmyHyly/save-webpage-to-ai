@@ -28,7 +28,9 @@
 - 📦 **外部资源管理**：
   - 使用 performance API 获取当前页面的所有外部资源
   - 支持查看和保存 CSS、JavaScript、图片等资源
-  - 保存的资源会自动内联到上传的 HTML 中
+  - 支持按原始页面分组查看已保存的资源
+- 📊 **日志系统**：统一的日志模块，方便调试
+- 🗄️ **数据库管理**：使用 DBManager 类封装 IndexedDB 操作
 
 ## 文件结构
 
@@ -38,7 +40,6 @@ AI-Page-Manager/
 ├── background.js              # Service Worker，管理 IndexedDB 存储
 ├── popup.html                # 扩展 popup 界面
 ├── popup.js                  # popup 界面逻辑
-├── popup-utils.js            # popup 工具函数模块
 ├── resources.html             # 资源管理页面
 ├── resources.js              # 资源管理逻辑
 ├── content-utils.js          # 内容脚本共享模块
@@ -48,6 +49,8 @@ AI-Page-Manager/
 ├── constants.js              # 常量定义模块
 ├── options.html              # 设置页面
 ├── options.js                # 设置页面逻辑
+├── common-utils.js           # 公共工具函数
+├── logger.js                 # 统一日志模块
 └── icons/                   # 图标文件夹
     ├── icon16.png
     ├── icon48.png
@@ -113,7 +116,7 @@ AI-Page-Manager/
 3. 查看该页面的所有外部资源（CSS、JavaScript、图片等）
 4. 勾选需要保存的资源
 5. 点击「💾 保存选中的资源」按钮下载并保存到 IndexedDB
-6. 保存的资源会自动内联到上传的 HTML 中
+6. 保存的资源可以按原始页面分组查看
 
 ## 注意事项
 
@@ -142,11 +145,13 @@ AI-Page-Manager/
 - **DragEvent**：模拟拖拽事件实现文件上传
 - **chrome.storage.sync**：配置组数据自动同步到用户 Google 账号，跨设备可用
 - **配置组管理**：支持多配置组创建、切换、复制、重命名、删除
+- **日志系统**：统一日志模块，支持不同环境的日志输出
 - **模块化架构**：
   - `db-manager.js`：封装所有 IndexedDB 操作
   - `constants.js`：统一管理所有常量
   - `content-utils.js`：内容脚本共享函数
-  - `popup-utils.js`：popup 工具函数模块
+  - `common-utils.js`：公共工具函数
+  - `logger.js`：统一日志模块
 
 ## 许可证
 
