@@ -73,7 +73,7 @@ async function loadPages() {
     renderPages();
   } catch (error) {
     logger.error('加载页面列表失败:', error);
-    showEmptyState('加载失败，请重试');
+    window.showEmptyState('pageList', '加载失败，请重试');
   }
 }
 
@@ -84,7 +84,7 @@ async function loadResources() {
     renderResources();
   } catch (error) {
     logger.error('加载资源列表失败:', error);
-    showResourceEmptyState('加载失败，请重试');
+    window.showResourceEmptyState('resourceList', '加载失败，请重试');
   }
 }
 
@@ -96,7 +96,7 @@ function renderPages() {
   countEl.textContent = allPages.length;
   
   if (allPages.length === 0) {
-    showEmptyState('暂无保存的页面');
+    window.showEmptyState('pageList', '暂无保存的页面');
     return;
   }
   
@@ -576,6 +576,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadResources();
   } catch (e) {
     logger.error('loadResources error', e);
-    showResourceEmptyState('加载资源失败');
+    window.showResourceEmptyState('resourceList', '加载资源失败');
   }
 });

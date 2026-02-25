@@ -1,16 +1,12 @@
+// resources.js
 let allPages = [];
 let currentResources = [];
 let currentPageId = null;
 let currentResourcesData = null;
 
-// 检查 MESSAGE_TYPES 是否已定义
+// 如果 MESSAGE_TYPES 未定义，直接抛出错误，避免静默失败
 if (typeof MESSAGE_TYPES === 'undefined') {
-  console.error('MESSAGE_TYPES 未定义，请检查 constants.js 是否已加载');
-  var MESSAGE_TYPES = {
-    GET_ALL_RESOURCES: 'GET_ALL_RESOURCES',
-    SAVE_RESOURCES: 'SAVE_RESOURCES',
-    DELETE_RESOURCE: 'DELETE_RESOURCE'
-  };
+  throw new Error('MESSAGE_TYPES 未定义，请确保 constants.js 已正确加载');
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
