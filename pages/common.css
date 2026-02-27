@@ -1,0 +1,280 @@
+/* ===== common.css - 公共样式文件 ===== */
+
+/* ===== CSS 变量定义 ===== */
+:root {
+  /* 主题颜色 */
+  --primary-color: #667eea;
+  --primary-dark: #5568d3;
+  --primary-light: #e3f2fd;
+  
+  /* 功能颜色 */
+  --secondary-color: #6c757d;
+  --secondary-dark: #5a6268;
+  --danger-color: #dc3545;
+  --danger-dark: #c82333;
+  --success-color: #28a745;
+  --success-dark: #218838;
+  --info-color: #17a2b8;
+  --info-dark: #138496;
+  
+  /* 文本颜色 */
+  --text-color: #333;
+  --text-light: #666;
+  --text-lighter: #888;
+  --text-muted: #999;
+  
+  /* 边框和背景 */
+  --border-color: #e0e0e0;
+  --border-light: #eee;
+  --bg-color: #f5f7fa;
+  --bg-white: #fff;
+  --bg-light: #fafafa;
+  --bg-hover: #f8f9fa;
+  
+  /* 渐变色 */
+  --gradient-start: #667eea;
+  --gradient-end: #764ba2;
+  
+  /* 阴影 */
+  --shadow-sm: 0 4px 12px rgba(0,0,0,0.1);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.1);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.2);
+  
+  /* 圆角 */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  
+  /* 过渡 */
+  --transition-fast: 0.2s;
+  --transition-normal: 0.3s;
+}
+
+/* ===== 全局重置 ===== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ===== 基础字体 ===== */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: var(--bg-color);
+  color: var(--text-color);
+  line-height: 1.5;
+}
+
+/* ===== 按钮系统 ===== */
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all var(--transition-fast) ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  color: var(--bg-white);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102,126,234,0.2);
+}
+
+.btn-secondary {
+  background: var(--secondary-color);
+  color: var(--bg-white);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--secondary-dark);
+}
+
+.btn-danger {
+  background: var(--danger-color);
+  color: var(--bg-white);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--danger-dark);
+}
+
+.btn-success {
+  background: var(--success-color);
+  color: var(--bg-white);
+}
+
+.btn-success:hover:not(:disabled) {
+  background: var(--success-dark);
+}
+
+.btn-info {
+  background: var(--info-color);
+  color: var(--bg-white);
+}
+
+.btn-info:hover:not(:disabled) {
+  background: var(--info-dark);
+}
+
+/* ===== 资源图标 ===== */
+.resource-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+}
+
+.resource-icon.css { background: #e3f2fd; color: #1976d2; }
+.resource-icon.js { background: #fff3e0; color: #f57c00; }
+.resource-icon.image { background: #e8f5e9; color: #388e3c; }
+.resource-icon.font { background: #f3e5f5; color: #7b1fa2; }
+.resource-icon.other { background: #eceff1; color: #607d8b; }
+
+/* ===== 进度条组件 ===== */
+.progress-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.progress-overlay.active {
+  display: flex;
+}
+
+.progress-box {
+  background: var(--bg-white);
+  padding: 24px;
+  border-radius: var(--radius-md);
+  text-align: center;
+  min-width: 280px;
+  box-shadow: var(--shadow-sm);
+}
+
+.progress-box h3 {
+  font-size: 16px;
+  margin-bottom: 12px;
+  color: var(--text-color);
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #eee;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 12px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gradient-start), var(--gradient-end));
+  transition: width var(--transition-normal) ease;
+}
+
+.progress-text {
+  font-size: 13px;
+  color: var(--text-light);
+  margin-top: 12px;
+}
+
+/* ===== 空状态 ===== */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+}
+
+.empty-state svg {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.empty-state p {
+  font-size: 13px;
+}
+
+/* ===== 工具类 ===== */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.badge-enabled {
+  background: #d4edda;
+  color: #155724;
+}
+
+.badge-disabled {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: var(--success-color);
+  color: var(--bg-white);
+  padding: 12px 24px;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+  transform: translateX(400px);
+  transition: transform var(--transition-normal) ease;
+  z-index: 1000;
+}
+
+.toast.show {
+  transform: translateX(0);
+}
+
+.toast.toast-error {
+  background: var(--danger-color);
+}
+
+/* ===== 滚动条样式 ===== */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #aaa;
+}

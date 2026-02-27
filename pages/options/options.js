@@ -22,6 +22,17 @@ const DEFAULT_CLASS_RULES = [
   { selector: '.popup-overlay', enabled: true, description: '弹窗遮罩' }
 ];
 
+// 默认主题配置（不可变）
+const DEFAULT_THEME_COLORS = {
+  primaryColor: '#667eea',
+  primaryDark: '#5568d3',
+  dangerColor: '#dc3545',
+  successColor: '#28a745',
+  infoColor: '#17a2b8',
+  gradientStart: '#667eea',
+  gradientEnd: '#764ba2'
+};
+
 // 默认 HTML 清理配置（不可变）
 const DEFAULT_CLEANER_CONFIG = {
   trackingLinks: {
@@ -924,8 +935,140 @@ function updateSizeDisplay(inputId, displayId) {
   }
 }
 
+// ==================== 主题配置管理 ====================
+
+/**
+ * 获取主题配置
+ */
+async function getThemeColors() {
+  const result = await chrome.storage.sync.get('themeColors');
+  return result.themeColors || { ...DEFAULT_THEME_COLORS };
+}
+
+/**
+ * 保存主题配置
+ */
+async function saveThemeColors(colors) {
+  await chrome.storage.sync.set({ themeColors: colors });
+}
+
+/**
+ * 应用主题到页面
+ */
+function applyThemeToPage(colors) {
+  const root = document.documentElement;
+  root.style.setProperty('--primary-color', colors.primaryColor);
+  root.style.setProperty('--primary-dark', colors.primaryDark);
+  root.style.setProperty('--danger-color', colors.dangerColor);
+  root.style.setProperty('--success-color', colors.successColor);
+  root.style.setProperty('--info-color', colors.infoColor);
+  root.style.setProperty('--gradient-start', colors.gradientStart);
+  root.style.setProperty('--gradient-end', colors.gradientEnd);
+}
+
+/**
+ * 加载主题配置到 UI
+ */
+function loadThemeToUI(colors) {
+  document.getElementById('primaryColor').value = colors.primaryColor;
+  document.getElementById('primaryDark').value = colors.primaryDark;
+  document.getElementById('dangerColor').value = colors.dangerColor;
+  document.getElementById('successColor').value = colors.successColor;
+  document.getElementById('infoColor').value = colors.infoColor;
+  document.getElementById('gradientStart').value = colors.gradientStart;
+  document.getElementById('gradientEnd').value = colors.gradientEnd;
+  
+  // 更新预览
+  updateColorPreview('primaryColor', colors.primaryColor);
+  updateColorPreview('primaryDark', colors.primaryDark);
+  updateColorPreview('dangerColor', colors.dangerColor);
+  updateColorPreview('successColor', colors.successColor);
+  updateColorPreview('infoColor', colors.infoColor);
+  updateColorPreview('gradientStart', colors.gradientStart);
+  updateColorPreview('gradientEnd', colors.gradientEnd);
+}
+
+/**
+ * 更新颜色预览
+ */
+function updateColorPreview(colorId, colorValue) {
+  const preview = document.getElementById(colorId + 'Preview');
+  const text = document.getElementById(colorId + 'Text');
+  if (preview) preview.style.background = colorValue;
+  if (text) text.textContent = colorValue;
+}
+
+/**
+ * 从 UI 收集主题配置
+ */
+function collectThemeFromUI() {
+  return {
+    primaryColor: document.getElementById('primaryColor').value,
+    primaryDark: document.getElementById('primaryDark').value,
+    dangerColor: document.getElementById('dangerColor').value,
+    successColor: document.getElementById('successColor').value,
+    infoColor: document.getElementById('infoColor').value,
+    gradientStart: document.getElementById('gradientStart').value,
+    gradientEnd: document.getElementById('gradientEnd').value
+  };
+}
+
+/**
+ * 切换主题区域展开/折叠
+ */
+function toggleThemeSection() {
+  const content = document.getElementById('themeContent');
+  const header = document.querySelector('#themeSection .theme-header');
+  
+  if (content.classList.contains('hidden')) {
+    content.classList.remove('hidden');
+    header.classList.remove('collapsed');
+  } else {
+    content.classList.add('hidden');
+    header.classList.add('collapsed');
+  }
+}
+
+/**
+ * 重置主题为默认值
+ */
+async function resetTheme() {
+  await saveThemeColors({ ...DEFAULT_THEME_COLORS });
+  loadThemeToUI(DEFAULT_THEME_COLORS);
+  applyThemeToPage(DEFAULT_THEME_COLORS);
+  showToast('主题已重置');
+}
+
+/**
+ * 初始化主题配置
+ */
+async function initTheme() {
+  const colors = await getThemeColors();
+  loadThemeToUI(colors);
+  applyThemeToPage(colors);
+  
+  // 绑定颜色选择器事件
+  const colorInputs = ['primaryColor', 'primaryDark', 'dangerColor', 'successColor', 'infoColor', 'gradientStart', 'gradientEnd'];
+  colorInputs.forEach(id => {
+    const input = document.getElementById(id);
+    if (input) {
+      input.addEventListener('input', (e) => {
+        updateColorPreview(id, e.target.value);
+        const colors = collectThemeFromUI();
+        applyThemeToPage(colors);
+      });
+    }
+  });
+  
+  // 绑定重置按钮
+  document.getElementById('resetThemeBtn').addEventListener('click', resetTheme);
+}
+
 // 初始化
 document.addEventListener('DOMContentLoaded', async () => {
+  // 初始化主题
+  await initTheme();
+  
   await loadProfiles();
   await loadCurrentProfile();
   renderProfileList();
@@ -934,7 +1077,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('createProfileBtn').addEventListener('click', createNewProfile);
   document.getElementById('addIdRuleBtn').addEventListener('click', addIdRule);
   document.getElementById('addClassRuleBtn').addEventListener('click', addClassRule);
-  document.getElementById('saveAllBtn').addEventListener('click', saveCurrentProfileRules);
+  document.getElementById('saveAllBtn').addEventListener('click', async () => {
+    await saveCurrentProfileRules();
+    // 同时保存主题配置
+    const themeColors = collectThemeFromUI();
+    await saveThemeColors(themeColors);
+  });
 
   // 回车添加规则
   document.getElementById('newIdSelector').addEventListener('keypress', (e) => {

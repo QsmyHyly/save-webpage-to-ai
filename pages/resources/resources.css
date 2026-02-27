@@ -1,39 +1,39 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+/* 引入公共样式 */
+@import url('../common.css');
 
+/* ===== resources.css - 资源管理页面特有样式 ===== */
+
+/* 覆盖 body 默认样式 */
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   padding: 20px;
-  background: #f5f5f5;
   min-height: 100vh;
 }
 
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  background: var(--bg-white);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
   padding: 24px;
 }
 
+/* ===== 头部 ===== */
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .header h1 {
   font-size: 24px;
-  color: #333;
+  color: var(--text-color);
 }
 
+/* ===== 页面选择器 ===== */
 .page-selector {
   margin-bottom: 20px;
 }
@@ -42,18 +42,19 @@ body {
   display: block;
   margin-bottom: 8px;
   font-weight: 500;
-  color: #333;
+  color: var(--text-color);
 }
 
 .page-selector select {
   width: 100%;
   padding: 10px;
   border: 1px solid #ddd;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
-  background: white;
+  background: var(--bg-white);
 }
 
+/* ===== 资源列表 ===== */
 .resources-list {
   display: flex;
   flex-direction: column;
@@ -64,10 +65,10 @@ body {
   display: flex;
   align-items: center;
   padding: 16px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
-  background: #fafafa;
-  transition: all 0.2s;
+  background: var(--bg-light);
+  transition: all var(--transition-fast);
 }
 
 .resource-item:hover {
@@ -82,22 +83,13 @@ body {
   cursor: pointer;
 }
 
+/* 资源图标在 resources 页面稍大 */
 .resource-icon {
   width: 40px;
   height: 40px;
   margin-right: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
   font-size: 20px;
 }
-
-.resource-icon.css { background: #e3f2fd; color: #1976d2; }
-.resource-icon.js { background: #fff3e0; color: #f57c00; }
-.resource-icon.image { background: #e8f5e9; color: #388e3c; }
-.resource-icon.font { background: #f3e5f5; color: #7b1fa2; }
-.resource-icon.other { background: #eceff1; color: #607d8b; }
 
 .resource-info {
   flex: 1;
@@ -106,16 +98,17 @@ body {
 
 .resource-url {
   font-size: 14px;
-  color: #333;
+  color: var(--text-color);
   margin-bottom: 4px;
   word-break: break-all;
 }
 
 .resource-meta {
   font-size: 12px;
-  color: #666;
+  color: var(--text-light);
 }
 
+/* ===== 资源状态 ===== */
 .resource-status {
   padding: 4px 12px;
   border-radius: 12px;
@@ -138,112 +131,26 @@ body {
   gap: 8px;
 }
 
-.btn {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background 0.2s;
-}
-
-.btn-primary {
-  background: #2196f3;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #1976d2;
-}
-
-.btn-secondary {
-  background: #757575;
-  color: white;
-}
-
-.btn-secondary:hover {
-  background: #616161;
-}
-
-.btn-danger {
-  background: #f44336;
-  color: white;
-}
-
-.btn-danger:hover {
-  background: #d32f2f;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
+/* ===== 底部操作栏 ===== */
 .action-bar {
   position: sticky;
   bottom: 0;
-  background: white;
+  background: var(--bg-white);
   padding: 16px 0;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--border-color);
   margin-top: 20px;
   display: flex;
   gap: 12px;
   justify-content: flex-end;
 }
 
+/* ===== 空状态覆盖 ===== */
 .empty-state {
-  text-align: center;
   padding: 60px 20px;
-  color: #999;
 }
 
 .empty-state svg {
   width: 80px;
   height: 80px;
   margin-bottom: 16px;
-  opacity: 0.5;
-}
-
-.progress-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.5);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-}
-
-.progress-overlay.active {
-  display: flex;
-}
-
-.progress-box {
-  background: white;
-  padding: 24px;
-  border-radius: 8px;
-  min-width: 300px;
-}
-
-.progress-box h3 {
-  font-size: 16px;
-  margin-bottom: 12px;
-  color: #333;
-}
-
-.progress-bar {
-  height: 8px;
-  background: #e0e0e0;
-  border-radius: 4px;
-  overflow: hidden;
-  margin-top: 12px;
-}
-
-.progress-fill {
-  height: 100%;
-  background: #2196f3;
-  transition: width 0.3s;
 }

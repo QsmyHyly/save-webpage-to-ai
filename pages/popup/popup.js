@@ -6,6 +6,36 @@ let currentTab = null;
 let isTargetPage = false;
 let currentPlatform = null;
 
+// 默认主题配置
+const DEFAULT_THEME_COLORS = {
+  primaryColor: '#667eea',
+  primaryDark: '#5568d3',
+  dangerColor: '#dc3545',
+  successColor: '#28a745',
+  infoColor: '#17a2b8',
+  gradientStart: '#667eea',
+  gradientEnd: '#764ba2'
+};
+
+// 应用主题到页面
+async function applyTheme() {
+  try {
+    const result = await chrome.storage.sync.get('themeColors');
+    const colors = result.themeColors || DEFAULT_THEME_COLORS;
+    
+    const root = document.documentElement;
+    root.style.setProperty('--primary-color', colors.primaryColor);
+    root.style.setProperty('--primary-dark', colors.primaryDark);
+    root.style.setProperty('--danger-color', colors.dangerColor);
+    root.style.setProperty('--success-color', colors.successColor);
+    root.style.setProperty('--info-color', colors.infoColor);
+    root.style.setProperty('--gradient-start', colors.gradientStart);
+    root.style.setProperty('--gradient-end', colors.gradientEnd);
+  } catch (e) {
+    console.error('应用主题失败:', e);
+  }
+}
+
 // 获取当前标签页
 async function getCurrentTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -611,6 +641,9 @@ function bindEvents() {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', async () => {
+  // 应用主题
+  await applyTheme();
+  
   // 始终执行事件绑定，避免按钮无效
   bindEvents();
 

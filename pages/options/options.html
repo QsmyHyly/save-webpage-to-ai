@@ -209,6 +209,75 @@
       </div>
     </div>
 
+    <!-- 主题配置 -->
+    <div class="theme-section" id="themeSection">
+      <div class="theme-header" onclick="toggleThemeSection()">
+        <h3>
+          🎨 主题设置
+        </h3>
+        <span class="toggle-icon">▼</span>
+      </div>
+      <div class="theme-content hidden" id="themeContent">
+        <div class="color-picker-row">
+          <label class="config-label">主色调</label>
+          <input type="color" id="primaryColor" value="#667eea">
+          <div class="color-preview">
+            <div class="preview-box" id="primaryColorPreview" style="background: #667eea;"></div>
+            <span class="preview-text" id="primaryColorText">#667eea</span>
+          </div>
+        </div>
+        <div class="color-picker-row">
+          <label class="config-label">主色调（深色）</label>
+          <input type="color" id="primaryDark" value="#5568d3">
+          <div class="color-preview">
+            <div class="preview-box" id="primaryDarkPreview" style="background: #5568d3;"></div>
+            <span class="preview-text" id="primaryDarkText">#5568d3</span>
+          </div>
+        </div>
+        <div class="color-picker-row">
+          <label class="config-label">危险色</label>
+          <input type="color" id="dangerColor" value="#dc3545">
+          <div class="color-preview">
+            <div class="preview-box" id="dangerColorPreview" style="background: #dc3545;"></div>
+            <span class="preview-text" id="dangerColorText">#dc3545</span>
+          </div>
+        </div>
+        <div class="color-picker-row">
+          <label class="config-label">成功色</label>
+          <input type="color" id="successColor" value="#28a745">
+          <div class="color-preview">
+            <div class="preview-box" id="successColorPreview" style="background: #28a745;"></div>
+            <span class="preview-text" id="successColorText">#28a745</span>
+          </div>
+        </div>
+        <div class="color-picker-row">
+          <label class="config-label">信息色</label>
+          <input type="color" id="infoColor" value="#17a2b8">
+          <div class="color-preview">
+            <div class="preview-box" id="infoColorPreview" style="background: #17a2b8;"></div>
+            <span class="preview-text" id="infoColorText">#17a2b8</span>
+          </div>
+        </div>
+        <div class="color-picker-row">
+          <label class="config-label">渐变起始色</label>
+          <input type="color" id="gradientStart" value="#667eea">
+          <div class="color-preview">
+            <div class="preview-box" id="gradientStartPreview" style="background: #667eea;"></div>
+            <span class="preview-text" id="gradientStartText">#667eea</span>
+          </div>
+        </div>
+        <div class="color-picker-row">
+          <label class="config-label">渐变结束色</label>
+          <input type="color" id="gradientEnd" value="#764ba2">
+          <div class="color-preview">
+            <div class="preview-box" id="gradientEndPreview" style="background: #764ba2;"></div>
+            <span class="preview-text" id="gradientEndText">#764ba2</span>
+          </div>
+        </div>
+        <button id="resetThemeBtn" class="btn btn-secondary theme-reset-btn">恢复默认主题</button>
+      </div>
+    </div>
+
     <div class="footer">
       <button id="saveAllBtn" class="btn btn-success">保存当前配置</button>
     </div>

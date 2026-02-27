@@ -9,7 +9,39 @@ if (typeof MESSAGE_TYPES === 'undefined') {
   throw new Error('MESSAGE_TYPES 未定义，请确保 constants.js 已正确加载');
 }
 
+// 默认主题配置
+const DEFAULT_THEME_COLORS = {
+  primaryColor: '#667eea',
+  primaryDark: '#5568d3',
+  dangerColor: '#dc3545',
+  successColor: '#28a745',
+  infoColor: '#17a2b8',
+  gradientStart: '#667eea',
+  gradientEnd: '#764ba2'
+};
+
+// 应用主题到页面
+async function applyTheme() {
+  try {
+    const result = await chrome.storage.sync.get('themeColors');
+    const colors = result.themeColors || DEFAULT_THEME_COLORS;
+    
+    const root = document.documentElement;
+    root.style.setProperty('--primary-color', colors.primaryColor);
+    root.style.setProperty('--primary-dark', colors.primaryDark);
+    root.style.setProperty('--danger-color', colors.dangerColor);
+    root.style.setProperty('--success-color', colors.successColor);
+    root.style.setProperty('--info-color', colors.infoColor);
+    root.style.setProperty('--gradient-start', colors.gradientStart);
+    root.style.setProperty('--gradient-end', colors.gradientEnd);
+  } catch (e) {
+    console.error('应用主题失败:', e);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
+  // 应用主题
+  await applyTheme();
   await loadCurrentResources();
   bindEvents();
 });
