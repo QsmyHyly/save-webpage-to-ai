@@ -25,36 +25,64 @@
   - 默认配置不可修改，作为模板供参考
   - 配置组自动同步到 Google 账号，跨设备可用
 - 🚫 **元素屏蔽功能**：在保存网页时自动移除不需要的元素（如 AI 助手、广告等）
+- 🧹 **HTML 内容清理**：
+  - 追踪链接清理（移除追踪参数如 `utm_source` 等）
+  - 内联样式清理（移除不必要的 `style` 属性）
+  - 脚本清理（移除 `<script>` 标签）
+  - 通用设置（移除注释、`data-*` 属性等）
+  - 按域名配置不同的清理规则
+  - 清理完成后显示节省的存储空间百分比
 - 📦 **外部资源管理**：
   - 使用 performance API 获取当前页面的所有外部资源
   - 支持查看和保存 CSS、JavaScript、图片等资源
   - 支持按原始页面分组查看已保存的资源
+- 🎨 **主题配置**：支持自定义界面主色调、危险色、成功色、渐变色等
 - 📊 **日志系统**：统一的日志模块，方便调试
 - 🗄️ **数据库管理**：使用 DBManager 类封装 IndexedDB 操作
 
 ## 文件结构
 
 ```
-AI-Page-Manager/
+保存网页并发送给deepseek或千问/
 ├── manifest.json              # 扩展配置文件
-├── background.js              # Service Worker，管理 IndexedDB 存储
-├── popup.html                # 扩展 popup 界面
-├── popup.js                  # popup 界面逻辑
-├── resources.html             # 资源管理页面
-├── resources.js              # 资源管理逻辑
-├── content-utils.js          # 内容脚本共享模块
-├── deepseek-content.js       # DeepSeek 页面内容脚本（处理上传）
-├── qianwen-uploader.js       # 通义千问页面内容脚本（处理上传）
-├── db-manager.js             # IndexedDB 数据库管理类
-├── constants.js              # 常量定义模块
-├── options.html              # 设置页面
-├── options.js                # 设置页面逻辑
-├── common-utils.js           # 公共工具函数
-├── logger.js                 # 统一日志模块
-└── icons/                   # 图标文件夹
-    ├── icon16.png
-    ├── icon48.png
-    └── icon128.png
+├── README.md                  # 项目说明文档
+├── icons/                     # 图标文件夹
+│   ├── icon16.png
+│   ├── icon48.png
+│   └── icon128.png
+├── src/                       # 源代码目录
+│   ├── background/            # 后台脚本
+│   │   ├── background.js      # Service Worker，管理 IndexedDB 存储
+│   │   └── db-manager.js      # IndexedDB 数据库管理类
+│   ├── content/               # 内容脚本
+│   │   ├── content-utils.js   # 内容脚本共享模块
+│   │   ├── deepseek-content.js # DeepSeek 页面内容脚本（处理上传）
+│   │   └── qianwen-uploader.js # 通义千问页面内容脚本（处理上传）
+│   └── utils/                 # 工具模块
+│       ├── common-utils.js    # 公共工具函数
+│       ├── constants.js       # 常量定义模块
+│       ├── html-cleaner.js    # HTML 内容清理模块
+│       └── logger.js          # 统一日志模块
+├── pages/                     # 页面目录
+│   ├── common.css             # 公共样式
+│   ├── popup/                 # 弹窗页面
+│   │   ├── popup.html         # 扩展 popup 界面
+│   │   ├── popup.js           # popup 界面逻辑
+│   │   ├── popup.css          # popup 样式
+│   │   └── README.md          # popup 说明文档
+│   ├── options/               # 设置页面
+│   │   ├── options.html       # 设置页面
+│   │   ├── options.js         # 设置页面逻辑
+│   │   ├── options.css        # 设置页面样式
+│   │   └── README.md          # 设置页面说明文档
+│   └── resources/             # 资源管理页面
+│       ├── resources.html     # 资源管理页面
+│       ├── resources.js       # 资源管理逻辑
+│       ├── resources.css      # 资源管理样式
+│       └── README.md          # 资源管理说明文档
+├── 文档/                      # 项目文档
+│   └── 设计文档.md            # 设计文档
+└── tools/                     # 工具文件夹
 ```
 
 ## 安装步骤
@@ -69,7 +97,7 @@ AI-Page-Manager/
 1. 打开 Chrome 浏览器，在地址栏输入 `chrome://extensions/` 并回车
 2. 开启右上角的「开发者模式」
 3. 点击「加载已解压的扩展程序」
-4. 选择本项目所在的文件夹（`AI-Page-Manager`）
+4. 选择本项目所在的文件夹
 5. 扩展图标将出现在 Chrome 工具栏中
 
 ## 使用方法
@@ -79,6 +107,7 @@ AI-Page-Manager/
 2. 点击 Chrome 工具栏中的扩展图标
 3. 在 popup 中点击「保存当前页面」按钮
 4. 页面的完整 HTML、标题、URL 将保存到本地存储
+5. 保存时会根据配置的清理规则自动清理内容，并显示节省的存储空间
 
 ### 管理保存的页面
 1. 在 popup 中查看所有已保存的页面列表
@@ -99,6 +128,26 @@ AI-Page-Manager/
    - **保存配置**：点击「保存当前配置」按钮保存修改
 3. 默认配置不可修改，需先创建新配置作为基础
 4. 配置会自动同步到 Google 账号，跨设备可用
+
+### 配置 HTML 清理规则
+1. 在设置页面中找到「HTML 内容清理配置」区域
+2. 可以配置以下清理选项：
+   - **追踪链接清理**：移除 URL 中的追踪参数（如 `utm_source`、`fbclid` 等）
+   - **内联样式清理**：移除元素上的 `style` 属性
+   - **脚本清理**：移除 `<script>` 标签
+   - **通用设置**：
+     - 移除 HTML 注释
+     - 移除 `data-*` 属性
+3. 可以按域名配置不同的清理规则，支持添加域名白名单/黑名单
+
+### 配置主题颜色
+1. 在设置页面底部找到「主题配置」区域
+2. 点击颜色选择器自定义以下颜色：
+   - 主色调
+   - 危险色（用于删除等操作）
+   - 成功色（用于成功提示）
+   - 渐变色（用于头部渐变背景）
+3. 修改后实时预览效果
 
 ### 上传到 AI 平台
 1. 打开 DeepSeek 对话页面（`https://chat.deepseek.com/`）或通义千问对话页面（`qianwen.com` / `qwen.ai`）
@@ -129,6 +178,7 @@ AI-Page-Manager/
 7. **跨域限制**：扩展仅在当前标签页执行内容脚本，不会读取或修改其他网站数据。
 8. **资源管理**：外部资源功能使用 performance API 获取已加载的资源，需要页面完全加载后才能获取完整列表。
 9. **删除操作**：删除页面和资源时不会弹出确认对话框，操作会立即执行。请谨慎操作，避免误删。
+10. **HTML 清理**：清理规则仅影响新保存的页面，已保存的页面不会自动重新清理。
 
 ## 隐私说明
 
@@ -143,15 +193,27 @@ AI-Page-Manager/
 - **Content Scripts**：分别注入到 DeepSeek 和通义千问页面，负责文件上传和发送
 - **chrome.scripting**：动态执行脚本获取当前页面 HTML
 - **DragEvent**：模拟拖拽事件实现文件上传
-- **chrome.storage.sync**：配置组数据自动同步到用户 Google 账号，跨设备可用
+- **chrome.storage.sync**：配置组数据和主题设置自动同步到用户 Google 账号，跨设备可用
 - **配置组管理**：支持多配置组创建、切换、复制、重命名、删除
+- **HTML 清理**：支持追踪链接、内联样式、脚本等多维度清理
+- **主题系统**：通过 CSS 变量实现主题切换
 - **日志系统**：统一日志模块，支持不同环境的日志输出
 - **模块化架构**：
-  - `db-manager.js`：封装所有 IndexedDB 操作
-  - `constants.js`：统一管理所有常量
-  - `content-utils.js`：内容脚本共享函数
-  - `common-utils.js`：公共工具函数
-  - `logger.js`：统一日志模块
+  - `src/background/`：后台脚本目录
+    - `background.js`：Service Worker 主入口
+    - `db-manager.js`：封装所有 IndexedDB 操作
+  - `src/content/`：内容脚本目录
+    - `content-utils.js`：内容脚本共享函数
+    - `deepseek-content.js`：DeepSeek 平台适配
+    - `qianwen-uploader.js`：通义千问平台适配
+  - `src/utils/`：工具模块目录
+    - `common-utils.js`：公共工具函数
+    - `constants.js`：统一管理所有常量
+    - `html-cleaner.js`：HTML 内容清理模块
+    - `logger.js`：统一日志模块
+  - `pages/popup/`：弹窗页面目录
+  - `pages/options/`：设置页面目录
+  - `pages/resources/`：资源管理页面目录
 
 ## 许可证
 
