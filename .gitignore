@@ -1,8 +1,11 @@
 # 文档文件夹
 文档/
 
-# Trae IDE 配置和计划文件
+
+# IDE 和工具配置目录
 .trae/
+.vscode/
+.codebuddy/
 
 # 图标资源（暂时忽略，后续更新）
 icons/

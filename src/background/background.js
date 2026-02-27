@@ -2,7 +2,7 @@
 // 负责 IndexedDB 数据库管理和消息处理
 
 // 使用 importScripts 加载依赖脚本（Service Worker 不支持 ES 模块 import）
-importScripts('constants.js', 'db-manager.js', 'logger.js');
+importScripts('../utils/constants.js', '../utils/logger.js', 'db-manager.js');
 
 // 日志级别配置
 const LOG_LEVEL = 'info'; // 'debug', 'info', 'warn', 'error' 或 false 关闭

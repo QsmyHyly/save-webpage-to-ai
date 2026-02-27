@@ -16,21 +16,26 @@
     "<all_urls>"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "src/background/background.js"
   },
   "action": {
     "default_title": "保存网页并发送给deepseek或千问",
-    "default_popup": "popup.html",
+    "default_popup": "pages/popup/popup.html",
     "default_icon": {
-      "16": "images/icon16.png",
-      "48": "images/icon48.png",
-      "128": "images/icon128.png"
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
     }
   },
   "content_scripts": [
     {
       "matches": ["https://chat.deepseek.com/*"],
-      "js": ["logger.js", "constants.js", "content-utils.js", "deepseek-content.js"],
+      "js": [
+        "src/utils/logger.js",
+        "src/utils/constants.js",
+        "src/content/content-utils.js",
+        "src/content/deepseek-content.js"
+      ],
       "run_at": "document_end"
     },
     {
@@ -38,20 +43,25 @@
         "https://*.qianwen.com/*",
         "https://*.qwen.ai/*"
       ],
-      "js": ["logger.js", "constants.js", "content-utils.js", "qianwen-uploader.js"],
+      "js": [
+        "src/utils/logger.js",
+        "src/utils/constants.js",
+        "src/content/content-utils.js",
+        "src/content/qianwen-uploader.js"
+      ],
       "run_at": "document_end"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["logger.js"],
+      "resources": ["src/utils/logger.js"],
       "matches": ["<all_urls>"]
     }
   ],
-  "options_page": "options.html",
+  "options_page": "pages/options/options.html",
   "icons": {
-    "16": "images/icon16.png",
-    "48": "images/icon48.png",
-    "128": "images/icon128.png"
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
   }
 }

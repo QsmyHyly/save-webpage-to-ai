@@ -399,13 +399,35 @@ async function saveCurrentPage() {
     
     const { html, title, url } = results[0].result;
     
+    // 清理HTML内容（过滤追踪链接、大型样式块、配置脚本等）
+    const { html: cleanedHtml, stats } = await cleanHtmlContent(html, { loadConfig: true });
+    
+    // 记录清理统计
+    if (stats && stats.savedSize > 0) {
+      logger.info('HTML清理统计:', {
+        原始大小: formatSize(stats.originalSize),
+        清理后: formatSize(stats.cleanedSize),
+        节省: formatSize(stats.savedSize) + ' (' + stats.savedPercent + '%)',
+        移除追踪链接: stats.removedTracking,
+        移除样式块: stats.removedStyles,
+        移除脚本: stats.removedScripts
+      });
+    }
+    
     await chrome.runtime.sendMessage({
       type: MESSAGE_TYPES.SAVE_PAGE,
-      data: { html, title, url, size: html.length }
+      data: { html: cleanedHtml, title, url, size: cleanedHtml.length }
     });
     
     await loadPages();
-    btn.textContent = '✅ 保存成功';
+    
+    // 显示清理效果
+    if (stats && stats.savedPercent > 0) {
+      btn.textContent = `✅ 已清理 ${stats.savedPercent}%`;
+    } else {
+      btn.textContent = '✅ 保存成功';
+    }
+    
     setTimeout(() => {
       btn.disabled = false;
       btn.textContent = '💾 保存当前页面';
