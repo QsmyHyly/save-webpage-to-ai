@@ -23,35 +23,19 @@
       </div>
     </div>
 
-    <h2>🆔 ID 选择器屏蔽列表</h2>
+    <h2>🚫 元素屏蔽规则</h2>
     <div class="rules-section">
       <div class="rules-header">
-        <h3>ID 选择器</h3>
-        <span class="rules-count" id="idRulesCount">0 条规则</span>
+        <h3>CSS 选择器规则</h3>
+        <span class="rules-count" id="rulesCount">0 条规则</span>
       </div>
-      <div id="idRuleList" class="rule-list">
-        <!-- ID 规则列表将动态生成 -->
-      </div>
-      <div class="add-rule-form">
-        <input type="text" id="newIdSelector" placeholder="输入 ID 选择器（如 #doubao-ai-assistant）">
-        <input type="text" id="newIdDesc" placeholder="描述（可选）" style="flex: 0 0 0 150px;">
-        <button id="addIdRuleBtn" class="btn btn-primary">添加 ID 规则</button>
-      </div>
-    </div>
-
-    <h2>🏷️ Class 选择器屏蔽列表</h2>
-    <div class="rules-section">
-      <div class="rules-header">
-        <h3>Class 选择器</h3>
-        <span class="rules-count" id="classRulesCount">0 条规则</span>
-      </div>
-      <div id="classRuleList" class="rule-list">
-        <!-- Class 规则列表将动态生成 -->
+      <div id="ruleList" class="rule-list">
+        <!-- 规则列表将动态生成 -->
       </div>
       <div class="add-rule-form">
-        <input type="text" id="newClassSelector" placeholder="输入 Class 选择器（如 .ad-banner）">
-        <input type="text" id="newClassDesc" placeholder="描述（可选）" style="flex: 0 0 0 150px;">
-        <button id="addClassRuleBtn" class="btn btn-primary">添加 Class 规则</button>
+        <input type="text" id="newSelector" placeholder="输入 CSS 选择器（如 #id, .class, [data-ad]）">
+        <input type="text" id="newDesc" placeholder="描述（可选）" style="flex: 0 0 0 150px;">
+        <button id="addRuleBtn" class="btn btn-primary">添加规则</button>
       </div>
     </div>
 
@@ -61,7 +45,83 @@
       <code>.class名</code> → 屏蔽特定 class 的元素（如 <code>.ad-banner</code>）<br>
       <code>[attr]</code> → 屏蔽含特定属性的元素（如 <code>[data-ad]</code>）<br>
       <code>div.ads</code> → 屏蔽 class="ads" 的 div 元素<br><br>
-      <small>提示：ID 选择器以 <code>#</code> 开头，Class 选择器以 <code>.</code> 开头</small>
+      <small>提示：支持任意有效的 CSS 选择器</small>
+    </div>
+
+    <!-- 属性规则配置 -->
+    <div class="rules-section" style="margin-top: 24px;">
+      <div class="rules-header">
+        <h3>🔍 属性值筛选规则</h3>
+        <span class="rules-count" id="attrRulesCount">0 条规则</span>
+      </div>
+      <p class="description" style="margin-bottom: 12px; font-size: 13px;">
+        根据元素属性值进行更复杂的匹配，支持长度比较、正则匹配等操作。
+      </p>
+      <div id="attrRuleList" class="rule-list">
+        <!-- 属性规则列表将动态生成 -->
+      </div>
+      <div class="attr-rule-form" id="attrRuleForm" style="display: none;">
+        <div class="attr-form-row">
+          <label>标签类型（可选）</label>
+          <input type="text" id="attrRuleTag" placeholder="如 img, div, *（留空表示所有）" style="flex: 1;">
+        </div>
+        <div class="attr-form-row">
+          <label>条件组合</label>
+          <select id="attrRuleMatch">
+            <option value="all">满足所有条件</option>
+            <option value="any">满足任一条件</option>
+          </select>
+        </div>
+        <div class="attr-conditions" id="attrConditions">
+          <div class="attr-condition-item">
+            <select class="attr-name">
+              <option value="src">src</option>
+              <option value="href">href</option>
+              <option value="style">style</option>
+              <option value="class">class</option>
+              <option value="data-src">data-src</option>
+              <option value="width">width</option>
+              <option value="height">height</option>
+              <option value="id">id</option>
+            </select>
+            <select class="attr-op">
+              <option value="contains">包含</option>
+              <option value="startsWith">开头为</option>
+              <option value="endsWith">结尾为</option>
+              <option value="regex">正则匹配</option>
+              <option value="length>">长度 &gt;</option>
+              <option value="length<">长度 &lt;</option>
+              <option value="length==">长度 =</option>
+              <option value=">">数值 &gt;</option>
+              <option value="<">数值 &lt;</option>
+              <option value="==">数值 =</option>
+              <option value="exists">属性存在</option>
+            </select>
+            <input type="text" class="attr-value" placeholder="比较值">
+            <button class="btn btn-secondary remove-condition" style="padding: 4px 8px;">×</button>
+          </div>
+        </div>
+        <button class="btn btn-secondary" id="addAttrConditionBtn" style="margin-top: 8px;">+ 添加条件</button>
+        <div class="attr-form-row" style="margin-top: 12px;">
+          <label>描述</label>
+          <input type="text" id="attrRuleDesc" placeholder="规则描述（可选）" style="flex: 1;">
+        </div>
+        <div class="attr-form-actions" style="margin-top: 12px;">
+          <button id="saveAttrRuleBtn" class="btn btn-primary">保存规则</button>
+          <button id="cancelAttrRuleBtn" class="btn btn-secondary">取消</button>
+        </div>
+      </div>
+      <div class="add-rule-form" id="addAttrRuleForm">
+        <button id="showAttrRuleFormBtn" class="btn btn-primary">+ 添加属性规则</button>
+      </div>
+    </div>
+
+    <div class="example-box">
+      <strong>属性规则示例：</strong><br><br>
+      <code>style 长度 &gt; 5000</code> → 移除 style 属性超过 5000 字符的元素<br>
+      <code>src 包含 utm_</code> → 移除 src 属性包含 utm_ 的元素<br>
+      <code>width 数值 &gt; 1000</code> → 移除 width 属性值超过 1000 的元素<br><br>
+      <small>提示：可组合多个条件，选择"满足所有条件"或"满足任一条件"</small>
     </div>
 
     <h2>🧹 HTML 内容清理设置</h2>
@@ -71,7 +131,7 @@
 
     <!-- 追踪链接配置 -->
     <div class="cleaner-section" id="trackingLinksSection">
-      <div class="cleaner-header" onclick="toggleCleanerSection('trackingLinks')">
+      <div class="cleaner-header" data-section="trackingLinks">
         <h3>
           🔗 追踪链接清理
           <span class="section-badge badge-enabled" id="trackingLinksBadge">已启用</span>
@@ -95,7 +155,7 @@
           <div class="pattern-list" id="trackingDomainsList"></div>
           <div class="add-pattern-form">
             <input type="text" id="newTrackingDomain" placeholder="输入域名（如 ad.example.com）">
-            <button class="btn btn-primary" onclick="addTrackingDomain()">添加</button>
+            <button class="btn btn-primary" id="addTrackingDomainBtn">添加</button>
           </div>
         </div>
         <div class="config-row" style="flex-direction: column; align-items: flex-start;">
@@ -103,7 +163,7 @@
           <div class="pattern-list" id="trackingParamsList"></div>
           <div class="add-pattern-form">
             <input type="text" id="newTrackingParam" placeholder="输入参数名（如 utm_source）">
-            <button class="btn btn-primary" onclick="addTrackingParam()">添加</button>
+            <button class="btn btn-primary" id="addTrackingParamBtn">添加</button>
           </div>
         </div>
       </div>
@@ -111,7 +171,7 @@
 
     <!-- 内联样式配置 -->
     <div class="cleaner-section" id="inlineStylesSection">
-      <div class="cleaner-header" onclick="toggleCleanerSection('inlineStyles')">
+      <div class="cleaner-header" data-section="inlineStyles">
         <h3>
           🎨 内联样式清理
           <span class="section-badge badge-enabled" id="inlineStylesBadge">已启用</span>
@@ -134,7 +194,7 @@
           <div class="pattern-list" id="stylePreservePatternsList"></div>
           <div class="add-pattern-form">
             <input type="text" id="newStylePreservePattern" placeholder="输入特征（如 print）">
-            <button class="btn btn-primary" onclick="addStylePreservePattern()">添加</button>
+            <button class="btn btn-primary" id="addStylePreservePatternBtn">添加</button>
           </div>
         </div>
         <div class="config-row" style="flex-direction: column; align-items: flex-start;">
@@ -142,7 +202,7 @@
           <div class="pattern-list" id="styleRemoveInjectorsList"></div>
           <div class="add-pattern-form">
             <input type="text" id="newStyleRemoveInjector" placeholder="输入特征（如 data-injector）">
-            <button class="btn btn-primary" onclick="addStyleRemoveInjector()">添加</button>
+            <button class="btn btn-primary" id="addStyleRemoveInjectorBtn">添加</button>
           </div>
         </div>
       </div>
@@ -150,7 +210,7 @@
 
     <!-- 脚本配置 -->
     <div class="cleaner-section" id="scriptsSection">
-      <div class="cleaner-header" onclick="toggleCleanerSection('scripts')">
+      <div class="cleaner-header" data-section="scripts">
         <h3>
           📜 脚本清理
           <span class="section-badge badge-enabled" id="scriptsBadge">已启用</span>
@@ -173,7 +233,7 @@
           <div class="pattern-list" id="scriptPreservePatternsList"></div>
           <div class="add-pattern-form">
             <input type="text" id="newScriptPreservePattern" placeholder="输入特征（如 __playinfo__）">
-            <button class="btn btn-primary" onclick="addScriptPreservePattern()">添加</button>
+            <button class="btn btn-primary" id="addScriptPreservePatternBtn">添加</button>
           </div>
         </div>
         <div class="config-row" style="flex-direction: column; align-items: flex-start;">
@@ -181,7 +241,7 @@
           <div class="pattern-list" id="scriptRemovePatternsList"></div>
           <div class="add-pattern-form">
             <input type="text" id="newScriptRemovePattern" placeholder="输入特征（如 _hmt.push）">
-            <button class="btn btn-primary" onclick="addScriptRemovePattern()">添加</button>
+            <button class="btn btn-primary" id="addScriptRemovePatternBtn">添加</button>
           </div>
         </div>
       </div>
@@ -189,7 +249,7 @@
 
     <!-- 通用配置 -->
     <div class="cleaner-section" id="generalSection">
-      <div class="cleaner-header" onclick="toggleCleanerSection('general')">
+      <div class="cleaner-header" data-section="general">
         <h3>
           ⚙️ 通用设置
         </h3>
@@ -211,7 +271,7 @@
 
     <!-- 主题配置 -->
     <div class="theme-section" id="themeSection">
-      <div class="theme-header" onclick="toggleThemeSection()">
+      <div class="theme-header" id="themeHeader">
         <h3>
           🎨 主题设置
         </h3>

@@ -1,15 +1,24 @@
 // options.js - 设置页面逻辑
 // 负责管理元素屏蔽规则和配置组
 
-let idRules = [];
-let classRules = [];
+let rules = [];  // 统一的规则数组
 let profiles = {};
 let currentProfileId = 'default';
 
 // HTML 清理配置
 let cleanerConfig = {};
 
-// 默认屏蔽规则（不可变）
+// 默认屏蔽规则（不可变）- 统一结构
+const DEFAULT_RULES = [
+  { id: 'rule-001', type: 'css', selector: '#doubao-ai-assistant', enabled: true, description: '豆包 AI 助手' },
+  { id: 'rule-002', type: 'css', selector: '[aria-label="flow-ai-assistant"]', enabled: true, description: 'AI 助手通用标识' },
+  { id: 'rule-003', type: 'css', selector: '.mini-header__logo', enabled: true, description: 'B 站 Logo' },
+  { id: 'rule-004', type: 'css', selector: '.ad-banner', enabled: true, description: '广告横幅' },
+  { id: 'rule-005', type: 'css', selector: '[data-ad]', enabled: true, description: '广告属性标记' },
+  { id: 'rule-006', type: 'css', selector: '.popup-overlay', enabled: true, description: '弹窗遮罩' }
+];
+
+// 兼容旧版本的常量（用于迁移）
 const DEFAULT_ID_RULES = [
   { selector: '#doubao-ai-assistant', enabled: true, description: '豆包 AI 助手' },
   { selector: '[aria-label="flow-ai-assistant"]', enabled: true, description: 'AI 助手通用标识' },
@@ -181,6 +190,50 @@ async function saveCurrentProfileId(profileId) {
 }
 
 /**
+ * 生成唯一规则 ID
+ */
+function generateRuleId() {
+  return 'rule-' + Date.now() + '-' + Math.random().toString(36).substring(2, 11);
+}
+
+/**
+ * 迁移旧格式规则到新格式
+ * @param {Object} profile - 配置对象
+ * @returns {Array} 迁移后的规则数组
+ */
+function migrateRules(profile) {
+  const rules = [];
+  
+  // 迁移 idRules
+  if (profile.idRules && Array.isArray(profile.idRules)) {
+    profile.idRules.forEach(r => {
+      rules.push({
+        id: generateRuleId(),
+        type: 'css',
+        selector: r.selector,
+        enabled: r.enabled !== false,
+        description: r.description || ''
+      });
+    });
+  }
+  
+  // 迁移 classRules
+  if (profile.classRules && Array.isArray(profile.classRules)) {
+    profile.classRules.forEach(r => {
+      rules.push({
+        id: generateRuleId(),
+        type: 'css',
+        selector: r.selector,
+        enabled: r.enabled !== false,
+        description: r.description || ''
+      });
+    });
+  }
+  
+  return rules;
+}
+
+/**
  * 获取当前配置组的规则
  */
 async function getCurrentProfileRules() {
@@ -189,17 +242,18 @@ async function getCurrentProfileRules() {
   const profile = p[pid];
   
   if (profile) {
-    return {
-      idRules: profile.idRules || [],
-      classRules: profile.classRules || []
-    };
+    // 新格式：直接返回 rules
+    if (profile.rules && Array.isArray(profile.rules)) {
+      return { rules: profile.rules };
+    }
+    // 旧格式：迁移后返回
+    if (profile.idRules || profile.classRules) {
+      return { rules: migrateRules(profile) };
+    }
   }
   
   // 如果配置不存在，返回默认规则
-  return {
-    idRules: JSON.parse(JSON.stringify(DEFAULT_ID_RULES)),
-    classRules: JSON.parse(JSON.stringify(DEFAULT_CLASS_RULES))
-  };
+  return { rules: JSON.parse(JSON.stringify(DEFAULT_RULES)) };
 }
 
 /**
@@ -210,8 +264,7 @@ async function createProfile(name) {
   const id = 'profile_' + Date.now();
   profiles[id] = {
     name: name,
-    idRules: JSON.parse(JSON.stringify(DEFAULT_ID_RULES)),
-    classRules: JSON.parse(JSON.stringify(DEFAULT_CLASS_RULES)),
+    rules: JSON.parse(JSON.stringify(DEFAULT_RULES)),
     cleanerConfig: JSON.parse(JSON.stringify(DEFAULT_CLEANER_CONFIG)),
     isDefault: false
   };
@@ -256,10 +309,20 @@ async function duplicateProfile(profileId) {
   if (!source) return null;
   
   const newId = 'profile_' + Date.now();
+  
+  // 获取源配置的规则（处理新旧格式）
+  let sourceRules;
+  if (source.rules && Array.isArray(source.rules)) {
+    sourceRules = source.rules;
+  } else if (source.idRules || source.classRules) {
+    sourceRules = migrateRules(source);
+  } else {
+    sourceRules = DEFAULT_RULES;
+  }
+  
   profiles[newId] = {
     name: source.name + ' (副本)',
-    idRules: JSON.parse(JSON.stringify(source.idRules)),
-    classRules: JSON.parse(JSON.stringify(source.classRules)),
+    rules: JSON.parse(JSON.stringify(sourceRules)),
     cleanerConfig: JSON.parse(JSON.stringify(source.cleanerConfig || DEFAULT_CLEANER_CONFIG)),
     isDefault: false
   };
@@ -391,16 +454,35 @@ async function loadProfiles() {
   profiles = await getProfiles();
   currentProfileId = await getCurrentProfileId();
   
+  let migrated = false;
+  
   // 确保默认配置存在
   if (!profiles['default']) {
     profiles['default'] = {
       name: '默认配置',
-      idRules: JSON.parse(JSON.stringify(DEFAULT_ID_RULES)),
-      classRules: JSON.parse(JSON.stringify(DEFAULT_CLASS_RULES)),
+      rules: JSON.parse(JSON.stringify(DEFAULT_RULES)),
       cleanerConfig: JSON.parse(JSON.stringify(DEFAULT_CLEANER_CONFIG)),
       isDefault: true
     };
+    migrated = true;
+  }
+  
+  // 迁移旧格式数据
+  for (const id in profiles) {
+    const profile = profiles[id];
+    // 如果存在旧的 idRules 或 classRules 但没有新的 rules，则迁移
+    if ((profile.idRules || profile.classRules) && !profile.rules) {
+      profile.rules = migrateRules(profile);
+      delete profile.idRules;
+      delete profile.classRules;
+      migrated = true;
+    }
+  }
+  
+  // 如果有迁移，保存更新后的配置
+  if (migrated) {
     await saveProfiles(profiles);
+    console.log('[配置迁移] 已将旧格式规则迁移为统一格式');
   }
 }
 
@@ -408,12 +490,11 @@ async function loadProfiles() {
  * 加载当前配置组的规则
  */
 async function loadCurrentProfile() {
-  const rules = await getCurrentProfileRules();
-  idRules = rules.idRules;
-  classRules = rules.classRules;
+  const rulesData = await getCurrentProfileRules();
+  rules = rulesData.rules;
   
-  renderRuleList(document.getElementById('idRuleList'), idRules, 'id');
-  renderRuleList(document.getElementById('classRuleList'), classRules, 'class');
+  renderRuleList(document.getElementById('ruleList'), rules);
+  renderAttrRuleList(document.getElementById('attrRuleList'), rules);
   updateCounts();
   
   // 加载 HTML 清理配置
@@ -421,38 +502,37 @@ async function loadCurrentProfile() {
 }
 
 /**
- * 渲染规则列表
+ * 渲染规则列表（统一）
  */
-function renderRuleList(container, rules, type) {
+function renderRuleList(container, rulesList) {
   const isDefaultProfile = currentProfileId === 'default';
+  const cssRules = rulesList.filter(r => r.type === 'css' || !r.type);
   
-  if (rules.length === 0) {
+  if (!cssRules || cssRules.length === 0) {
     container.innerHTML = '<div class="empty-state">暂无规则</div>';
     return;
   }
 
-  container.innerHTML = rules.map((rule, index) => `
-    <div class="rule-item ${rule.enabled ? '' : 'disabled'}">
-      <input type="checkbox" class="rule-toggle" data-type="${type}" data-index="${index}" ${rule.enabled ? 'checked' : ''} ${isDefaultProfile ? 'disabled' : ''}>
-      <div class="rule-info">
-        <div class="rule-selector">${escapeHtml(rule.selector)}</div>
-        <div class="rule-desc">${escapeHtml(rule.description)}${rule.enabled ? '' : '（已禁用）'}</div>
+  container.innerHTML = cssRules.map((rule, index) => {
+    const globalIndex = rulesList.findIndex(r => r.id === rule.id);
+    return `
+      <div class="rule-item ${rule.enabled ? '' : 'disabled'}">
+        <input type="checkbox" class="rule-toggle" data-index="${globalIndex}" ${rule.enabled ? 'checked' : ''} ${isDefaultProfile ? 'disabled' : ''}>
+        <div class="rule-info">
+          <div class="rule-selector">${escapeHtml(rule.selector)}</div>
+          <div class="rule-desc">${escapeHtml(rule.description || '')}${rule.enabled ? '' : '（已禁用）'}</div>
+        </div>
+        <button class="rule-delete" data-index="${globalIndex}" ${isDefaultProfile ? 'disabled' : ''}>删除</button>
       </div>
-      <button class="rule-delete" data-type="${type}" data-index="${index}" ${isDefaultProfile ? 'disabled' : ''}>删除</button>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 
   // 绑定切换开关事件
   container.querySelectorAll('.rule-toggle').forEach(toggle => {
     toggle.addEventListener('change', (e) => {
-      const type = e.target.dataset.type;
       const index = parseInt(e.target.dataset.index);
-      if (type === 'id') {
-        idRules[index].enabled = e.target.checked;
-      } else {
-        classRules[index].enabled = e.target.checked;
-      }
-      renderRuleList(container, type === 'id' ? idRules : classRules, type);
+      rules[index].enabled = e.target.checked;
+      renderRuleList(container, rules);
       updateCounts();
     });
   });
@@ -460,15 +540,89 @@ function renderRuleList(container, rules, type) {
   // 绑定删除按钮事件
   container.querySelectorAll('.rule-delete').forEach(btn => {
     btn.addEventListener('click', (e) => {
-      const type = e.target.dataset.type;
       const index = parseInt(e.target.dataset.index);
-      if (type === 'id') {
-        idRules.splice(index, 1);
-        renderRuleList(document.getElementById('idRuleList'), idRules, 'id');
-      } else {
-        classRules.splice(index, 1);
-        renderRuleList(document.getElementById('classRuleList'), classRules, 'class');
-      }
+      rules.splice(index, 1);
+      renderRuleList(container, rules);
+      renderAttrRuleList(document.getElementById('attrRuleList'), rules);
+      updateCounts();
+    });
+  });
+}
+
+/**
+ * 格式化属性条件显示
+ */
+function formatCondition(cond) {
+  const opLabels = {
+    'contains': '包含',
+    'startsWith': '开头为',
+    'endsWith': '结尾为',
+    'regex': '正则匹配',
+    'length>': '长度>',
+    'length<': '长度<',
+    'length==': '长度=',
+    '>': '数值>',
+    '<': '数值<',
+    '>=': '数值≥',
+    '<=': '数值≤',
+    '==': '数值=',
+    'exists': '存在'
+  };
+  const opLabel = opLabels[cond.op] || cond.op;
+  if (cond.op === 'exists') {
+    return `${cond.attr} ${opLabel}`;
+  }
+  return `${cond.attr} ${opLabel} ${cond.value}`;
+}
+
+/**
+ * 渲染属性规则列表
+ */
+function renderAttrRuleList(container, rulesList) {
+  const isDefaultProfile = currentProfileId === 'default';
+  const attrRules = rulesList.filter(r => r.type === 'attribute');
+  
+  if (!attrRules || attrRules.length === 0) {
+    container.innerHTML = '<div class="empty-state">暂无属性规则</div>';
+    return;
+  }
+
+  container.innerHTML = attrRules.map((rule, index) => {
+    const globalIndex = rulesList.findIndex(r => r.id === rule.id);
+    const conditionsStr = rule.conditions.map(c => formatCondition(c)).join(' 且 ');
+    return `
+      <div class="rule-item ${rule.enabled ? '' : 'disabled'}">
+        <input type="checkbox" class="rule-toggle attr-rule-toggle" data-index="${globalIndex}" ${rule.enabled ? 'checked' : ''} ${isDefaultProfile ? 'disabled' : ''}>
+        <div class="rule-info">
+          <div class="rule-selector" style="font-size: 12px;">
+            ${rule.tag ? `<span style="color: #667eea;">[${rule.tag}]</span> ` : ''}
+            ${conditionsStr}
+            ${rule.match === 'any' ? '<span style="color: #999;">(任一)</span>' : ''}
+          </div>
+          <div class="rule-desc">${escapeHtml(rule.description || '')}${rule.enabled ? '' : '（已禁用）'}</div>
+        </div>
+        <button class="rule-delete attr-rule-delete" data-index="${globalIndex}" ${isDefaultProfile ? 'disabled' : ''}>删除</button>
+      </div>
+    `;
+  }).join('');
+
+  // 绑定切换开关事件
+  container.querySelectorAll('.attr-rule-toggle').forEach(toggle => {
+    toggle.addEventListener('change', (e) => {
+      const index = parseInt(e.target.dataset.index);
+      rules[index].enabled = e.target.checked;
+      renderAttrRuleList(container, rules);
+      updateCounts();
+    });
+  });
+
+  // 绑定删除按钮事件
+  container.querySelectorAll('.attr-rule-delete').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const index = parseInt(e.target.dataset.index);
+      rules.splice(index, 1);
+      renderRuleList(document.getElementById('ruleList'), rules);
+      renderAttrRuleList(container, rules);
       updateCounts();
     });
   });
@@ -478,21 +632,23 @@ function renderRuleList(container, rules, type) {
  * 更新规则数量显示
  */
 function updateCounts() {
-  document.getElementById('idRulesCount').textContent = `${idRules.length} 条规则`;
-  document.getElementById('classRulesCount').textContent = `${classRules.length} 条规则`;
+  const cssRules = rules.filter(r => r.type === 'css' || !r.type);
+  const attrRules = rules.filter(r => r.type === 'attribute');
+  document.getElementById('rulesCount').textContent = `${cssRules.length} 条规则`;
+  document.getElementById('attrRulesCount').textContent = `${attrRules.length} 条规则`;
 }
 
 /**
- * 添加 ID 规则
+ * 添加规则（统一）
  */
-function addIdRule() {
+function addRule() {
   if (currentProfileId === 'default') {
     showToast('默认配置不可修改，请先创建新配置');
     return;
   }
 
-  const selectorInput = document.getElementById('newIdSelector');
-  const descInput = document.getElementById('newIdDesc');
+  const selectorInput = document.getElementById('newSelector');
+  const descInput = document.getElementById('newDesc');
 
   const selector = selectorInput.value.trim();
   if (!selector) {
@@ -500,17 +656,22 @@ function addIdRule() {
     return;
   }
 
-  if (!selector.startsWith('#')) {
-    showToast('ID 选择器必须以 # 开头');
+  // 验证选择器格式（CSS 选择器）
+  try {
+    document.querySelector(selector);
+  } catch (e) {
+    showToast('选择器格式无效');
     return;
   }
 
-  if (idRules.some(r => r.selector === selector)) {
+  if (rules.some(r => r.selector === selector)) {
     showToast('该选择器已存在');
     return;
   }
 
-  idRules.push({
+  rules.push({
+    id: generateRuleId(),
+    type: 'css',
     selector: selector,
     enabled: true,
     description: descInput.value.trim() || '自定义规则'
@@ -518,47 +679,7 @@ function addIdRule() {
 
   selectorInput.value = '';
   descInput.value = '';
-  renderRuleList(document.getElementById('idRuleList'), idRules, 'id');
-  updateCounts();
-}
-
-/**
- * 添加 Class 规则
- */
-function addClassRule() {
-  if (currentProfileId === 'default') {
-    showToast('默认配置不可修改，请先创建新配置');
-    return;
-  }
-
-  const selectorInput = document.getElementById('newClassSelector');
-  const descInput = document.getElementById('newClassDesc');
-
-  const selector = selectorInput.value.trim();
-  if (!selector) {
-    showToast('请输入选择器');
-    return;
-  }
-
-  if (!selector.startsWith('.')) {
-    showToast('Class 选择器必须以 . 开头');
-    return;
-  }
-
-  if (classRules.some(r => r.selector === selector)) {
-    showToast('该选择器已存在');
-    return;
-  }
-
-  classRules.push({
-    selector: selector,
-    enabled: true,
-    description: descInput.value.trim() || '自定义规则'
-  });
-
-  selectorInput.value = '';
-  descInput.value = '';
-  renderRuleList(document.getElementById('classRuleList'), classRules, 'class');
+  renderRuleList(document.getElementById('ruleList'), rules);
   updateCounts();
 }
 
@@ -571,8 +692,7 @@ async function saveCurrentProfileRules() {
     return;
   }
   
-  profiles[currentProfileId].idRules = idRules;
-  profiles[currentProfileId].classRules = classRules;
+  profiles[currentProfileId].rules = rules;
   
   // 保存 HTML 清理配置
   profiles[currentProfileId].cleanerConfig = collectCleanerConfigFromUI();
@@ -1064,6 +1184,185 @@ async function initTheme() {
   document.getElementById('resetThemeBtn').addEventListener('click', resetTheme);
 }
 
+// ==================== 属性规则表单管理 ====================
+
+/**
+ * 显示属性规则表单
+ */
+function showAttrRuleForm() {
+  if (currentProfileId === 'default') {
+    showToast('默认配置不可修改，请先创建新配置');
+    return;
+  }
+  document.getElementById('attrRuleForm').style.display = 'block';
+  document.getElementById('addAttrRuleForm').style.display = 'none';
+  resetAttrRuleForm();
+}
+
+/**
+ * 隐藏属性规则表单
+ */
+function hideAttrRuleForm() {
+  document.getElementById('attrRuleForm').style.display = 'none';
+  document.getElementById('addAttrRuleForm').style.display = 'block';
+  resetAttrRuleForm();
+}
+
+/**
+ * 重置属性规则表单
+ */
+function resetAttrRuleForm() {
+  document.getElementById('attrRuleTag').value = '';
+  document.getElementById('attrRuleMatch').value = 'all';
+  document.getElementById('attrRuleDesc').value = '';
+  
+  const conditionsContainer = document.getElementById('attrConditions');
+  conditionsContainer.innerHTML = `
+    <div class="attr-condition-item">
+      <select class="attr-name">
+        <option value="src">src</option>
+        <option value="href">href</option>
+        <option value="style">style</option>
+        <option value="class">class</option>
+        <option value="data-src">data-src</option>
+        <option value="width">width</option>
+        <option value="height">height</option>
+        <option value="id">id</option>
+      </select>
+      <select class="attr-op">
+        <option value="contains">包含</option>
+        <option value="startsWith">开头为</option>
+        <option value="endsWith">结尾为</option>
+        <option value="regex">正则匹配</option>
+        <option value="length>">长度 &gt;</option>
+        <option value="length<">长度 &lt;</option>
+        <option value="length==">长度 =</option>
+        <option value=">">数值 &gt;</option>
+        <option value="<">数值 &lt;</option>
+        <option value="==">数值 =</option>
+        <option value="exists">属性存在</option>
+      </select>
+      <input type="text" class="attr-value" placeholder="比较值">
+      <button class="btn btn-secondary remove-condition" style="padding: 4px 8px;">×</button>
+    </div>
+  `;
+  
+  bindAttrConditionEvents();
+}
+
+/**
+ * 添加属性条件
+ */
+function addAttrCondition() {
+  const conditionsContainer = document.getElementById('attrConditions');
+  const newCondition = document.createElement('div');
+  newCondition.className = 'attr-condition-item';
+  newCondition.innerHTML = `
+    <select class="attr-name">
+      <option value="src">src</option>
+      <option value="href">href</option>
+      <option value="style">style</option>
+      <option value="class">class</option>
+      <option value="data-src">data-src</option>
+      <option value="width">width</option>
+      <option value="height">height</option>
+      <option value="id">id</option>
+    </select>
+    <select class="attr-op">
+      <option value="contains">包含</option>
+      <option value="startsWith">开头为</option>
+      <option value="endsWith">结尾为</option>
+      <option value="regex">正则匹配</option>
+      <option value="length>">长度 &gt;</option>
+      <option value="length<">长度 &lt;</option>
+      <option value="length==">长度 =</option>
+      <option value=">">数值 &gt;</option>
+      <option value="<">数值 &lt;</option>
+      <option value="==">数值 =</option>
+      <option value="exists">属性存在</option>
+    </select>
+    <input type="text" class="attr-value" placeholder="比较值">
+    <button class="btn btn-secondary remove-condition" style="padding: 4px 8px;">×</button>
+  `;
+  conditionsContainer.appendChild(newCondition);
+  
+  bindRemoveConditionEvent(newCondition.querySelector('.remove-condition'));
+}
+
+/**
+ * 绑定属性条件的事件
+ */
+function bindAttrConditionEvents() {
+  document.querySelectorAll('#attrConditions .remove-condition').forEach(btn => {
+    bindRemoveConditionEvent(btn);
+  });
+}
+
+/**
+ * 绑定移除条件按钮事件
+ */
+function bindRemoveConditionEvent(btn) {
+  btn.addEventListener('click', () => {
+    removeAttrCondition(btn);
+  });
+}
+
+/**
+ * 移除属性条件
+ */
+function removeAttrCondition(btn) {
+  const conditionsContainer = document.getElementById('attrConditions');
+  if (conditionsContainer.children.length > 1) {
+    btn.parentElement.remove();
+  } else {
+    showToast('至少需要一个条件');
+  }
+}
+
+/**
+ * 保存属性规则
+ */
+function saveAttrRule() {
+  const tag = document.getElementById('attrRuleTag').value.trim() || null;
+  const match = document.getElementById('attrRuleMatch').value;
+  const desc = document.getElementById('attrRuleDesc').value.trim();
+  
+  const conditionItems = document.querySelectorAll('#attrConditions .attr-condition-item');
+  const conditions = [];
+  
+  conditionItems.forEach(item => {
+    const attr = item.querySelector('.attr-name').value;
+    const op = item.querySelector('.attr-op').value;
+    const value = item.querySelector('.attr-value').value.trim();
+    
+    if (op === 'exists') {
+      conditions.push({ attr, op });
+    } else if (value) {
+      conditions.push({ attr, op, value });
+    }
+  });
+  
+  if (conditions.length === 0) {
+    showToast('请至少添加一个有效条件');
+    return;
+  }
+  
+  rules.push({
+    id: generateRuleId(),
+    type: 'attribute',
+    tag: tag,
+    conditions: conditions,
+    match: match,
+    enabled: true,
+    description: desc || '属性筛选规则'
+  });
+  
+  renderAttrRuleList(document.getElementById('attrRuleList'), rules);
+  updateCounts();
+  hideAttrRuleForm();
+  showToast('属性规则已添加');
+}
+
 // 初始化
 document.addEventListener('DOMContentLoaded', async () => {
   // 初始化主题
@@ -1075,8 +1374,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 绑定事件
   document.getElementById('createProfileBtn').addEventListener('click', createNewProfile);
-  document.getElementById('addIdRuleBtn').addEventListener('click', addIdRule);
-  document.getElementById('addClassRuleBtn').addEventListener('click', addClassRule);
+  document.getElementById('addRuleBtn').addEventListener('click', addRule);
   document.getElementById('saveAllBtn').addEventListener('click', async () => {
     await saveCurrentProfileRules();
     // 同时保存主题配置
@@ -1085,17 +1383,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // 回车添加规则
-  document.getElementById('newIdSelector').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') addIdRule();
+  document.getElementById('newSelector').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') addRule();
   });
-  document.getElementById('newIdDesc').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') addIdRule();
-  });
-  document.getElementById('newClassSelector').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') addClassRule();
-  });
-  document.getElementById('newClassDesc').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') addClassRule();
+  document.getElementById('newDesc').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') addRule();
   });
 
   // HTML 清理配置 - 启用状态变化监听
@@ -1136,4 +1428,31 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('newScriptRemovePattern').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') addScriptRemovePattern();
   });
+
+  // 清理器区域头部点击事件
+  document.querySelectorAll('.cleaner-header[data-section]').forEach(header => {
+    header.addEventListener('click', () => {
+      toggleCleanerSection(header.dataset.section);
+    });
+  });
+
+  // 主题区域头部点击事件
+  document.getElementById('themeHeader').addEventListener('click', toggleThemeSection);
+
+  // 添加清理配置项按钮事件
+  document.getElementById('addTrackingDomainBtn').addEventListener('click', addTrackingDomain);
+  document.getElementById('addTrackingParamBtn').addEventListener('click', addTrackingParam);
+  document.getElementById('addStylePreservePatternBtn').addEventListener('click', addStylePreservePattern);
+  document.getElementById('addStyleRemoveInjectorBtn').addEventListener('click', addStyleRemoveInjector);
+  document.getElementById('addScriptPreservePatternBtn').addEventListener('click', addScriptPreservePattern);
+  document.getElementById('addScriptRemovePatternBtn').addEventListener('click', addScriptRemovePattern);
+
+  // 属性规则表单事件
+  document.getElementById('showAttrRuleFormBtn').addEventListener('click', showAttrRuleForm);
+  document.getElementById('saveAttrRuleBtn').addEventListener('click', saveAttrRule);
+  document.getElementById('cancelAttrRuleBtn').addEventListener('click', hideAttrRuleForm);
+  document.getElementById('addAttrConditionBtn').addEventListener('click', addAttrCondition);
+  
+  // 初始化属性条件按钮事件
+  bindAttrConditionEvents();
 });

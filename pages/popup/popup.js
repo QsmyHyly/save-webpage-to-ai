@@ -430,7 +430,8 @@ async function saveCurrentPage() {
     const { html, title, url } = results[0].result;
     
     // 清理HTML内容（过滤追踪链接、大型样式块、配置脚本等）
-    const { html: cleanedHtml, stats } = await cleanHtmlContent(html, { loadConfig: true });
+    // 传递页面 URL 作为 baseUrl，用于解析相对链接
+    const { html: cleanedHtml, stats } = await cleanHtmlContent(html, { loadConfig: true, baseUrl: url });
     
     // 记录清理统计
     if (stats && stats.savedSize > 0) {
