@@ -27,7 +27,7 @@
 | `checkPlatformStatus()` | 根据当前 URL 判断平台并更新 UI |
 | `saveCurrentPage()` | 获取并清理当前页面 HTML 后保存 |
 | `loadPages()` / `loadResources()` | 从 background 加载已保存数据 |
-| `renderPages()` / `renderResources()` | 渲染页面列表和资源列表 |
+| `renderPages()` / `renderResources()` | 渲染页面列表和资源列表（显示标题、URL、保存时间、文件大小） |
 | `downloadSelected()` | 批量下载选中的页面（包装元数据） |
 | `uploadSelected()` | 将选中项目上传到当前 AI 平台 |
 | `openResourcesManager()` | 注入脚本收集资源并打开资源管理页 |

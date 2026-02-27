@@ -170,7 +170,7 @@ function renderPages() {
       <div class="page-info">
         <div class="page-title" title="${escapeHtml(page.title)}">${escapeHtml(page.title)}</div>
         <div class="page-url" title="${escapeHtml(page.url)}">${escapeHtml(page.url)}</div>
-        <div class="page-time">${new Date(page.savedAt).toLocaleString()}</div>
+        <div class="page-time">${new Date(page.savedAt).toLocaleString()} · ${formatSize(page.size)}</div>
       </div>
       <div class="page-actions">
         <button class="btn btn-secondary download-btn" data-id="${page.id}">📥</button>
