@@ -1,0 +1,40 @@
+# popup.js – 扩展弹窗逻辑
+
+## 简介
+`popup.js` 是浏览器扩展弹窗（popup）的脚本，用于展示已保存的页面和外部资源，并提供保存当前页面、上传到 DeepSeek/千问、下载、删除等核心操作。
+
+## 主要功能
+- **状态检测**：检查当前标签页是否在 DeepSeek 或通义千问官网，更新上传按钮状态。
+- **保存当前页面**：通过 `chrome.scripting.executeScript` 获取页面 HTML，经 `html-cleaner.js` 清理后保存。
+- **展示列表**：从 background 获取已保存的页面和资源列表，支持多选、下载、删除。
+- **上传到 AI 平台**：将选中的页面/资源通过 content script 注入到 AI 对话输入框。
+- **主题应用**：从存储读取主题颜色并应用到弹窗 UI。
+
+## 数据流
+- **获取数据**：通过 `chrome.runtime.sendMessage` 与 background 通信，请求 `GET_ALL_PAGES`、`GET_ALL_RESOURCES` 等。
+- **保存页面**：`saveCurrentPage()` → 注入脚本获取 HTML → `cleanHtmlContent()` 清理 → 发送 `SAVE_PAGE` 消息。
+- **上传**：`uploadSelected()` → 检查 content script 就绪 → 发送 `UPLOAD_ITEMS` 消息。
+- **资源管理**：点击「管理外部资源」按钮时，注入脚本收集当前页面资源，存入 `chrome.storage.local` 后打开 `resources.html`。
+
+## 依赖
+- `chrome.tabs`、`chrome.scripting`、`chrome.runtime`、`chrome.storage`
+- `../../src/utils/logger.js`、`constants.js`、`common-utils.js`、`html-cleaner.js`
+- `popup.css`（样式文件）
+
+## 关键函数
+| 函数 | 作用 |
+|------|------|
+| `checkPlatformStatus()` | 根据当前 URL 判断平台并更新 UI |
+| `saveCurrentPage()` | 获取并清理当前页面 HTML 后保存 |
+| `loadPages()` / `loadResources()` | 从 background 加载已保存数据 |
+| `renderPages()` / `renderResources()` | 渲染页面列表和资源列表 |
+| `downloadSelected()` | 批量下载选中的页面（包装元数据） |
+| `uploadSelected()` | 将选中项目上传到当前 AI 平台 |
+| `openResourcesManager()` | 注入脚本收集资源并打开资源管理页 |
+| `applyTheme()` | 从存储读取主题并应用 CSS 变量 |
+
+## 注意事项
+- **内容脚本就绪检查**：上传前需确认 content script 已注入（通过 `PING` 消息），否则可能失败。
+- **清理统计**：保存页面后会显示清理节省的百分比（若启用清理规则）。
+- **跨域资源**：资源下载功能需注意 CORS 限制，目前仅下载同源或允许跨域的资源。
+- **主题同步**：弹窗的 CSS 变量与 options 页面共享同一套存储，修改后需重新打开弹窗生效。
