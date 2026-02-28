@@ -1,9 +1,11 @@
 # popup.js – 扩展弹窗逻辑
 
 ## 简介
+
 `popup.js` 是浏览器扩展弹窗（popup）的脚本，用于展示已保存的页面和外部资源，并提供保存当前页面、上传到 DeepSeek/千问、下载、删除等核心操作。
 
 ## 主要功能
+
 - **状态检测**：检查当前标签页是否在 DeepSeek 或通义千问官网，更新上传按钮状态。
 - **保存当前页面**：通过 `chrome.scripting.executeScript` 获取页面 HTML，经 `html-cleaner.js` 清理后保存。
 - **展示列表**：从 background 获取已保存的页面和资源列表，支持多选、下载、删除。
@@ -11,29 +13,33 @@
 - **主题应用**：从存储读取主题颜色并应用到弹窗 UI。
 
 ## 数据流
-- **获取数据**：通过 `chrome.runtime.sendMessage` 与 background 通信，使用新的文件系统 API：`GET_ALL_FILES`，然后按类型过滤出页面（html）和资源。
+
+- **获取数据**：通过 `chrome.runtime.sendMessage` 与 background 通信，使用 `GET_ALL_FILES` 获取所有文件，然后按类型过滤出页面（html）和资源。
 - **保存页面**：`saveCurrentPage()` → 注入脚本获取 HTML → `cleanHtmlContent()` 清理 → 创建 `FileEntity` → 发送 `SAVE_FILE` 消息。
 - **保存资源**：创建 `FileEntity` 数组 → 发送 `SAVE_FILES` 消息批量保存。
 - **删除**：发送 `DELETE_FILE`（单个）或 `DELETE_FILES`（批量）消息。
 - **上传**：`uploadSelected()` → 检查 content script 就绪 → 发送 `UPLOAD_ITEMS` 消息。
 - **资源管理**：点击「管理外部资源」按钮时，注入脚本收集当前页面资源，存入 `chrome.storage.local` 后打开 `resources.html`。
 
-## 文件系统 API 迁移（v3.0）
-- **旧 API（已废弃）**：`GET_ALL_PAGES`、`GET_ALL_RESOURCES`、`SAVE_PAGE`、`SAVE_RESOURCES`、`DELETE_PAGE`、`DELETE_RESOURCE`
-- **新 API（推荐）**：
-  - `GET_ALL_FILES`：获取所有文件，按类型过滤
-  - `SAVE_FILE` / `SAVE_FILES`：保存文件（单个/批量）
-  - `DELETE_FILE` / `DELETE_FILES`：删除文件（单个/批量）
-  - `GET_FILES_BY_TYPE`：按类型获取文件
-  - `GET_FILE`：获取单个文件详情
-- **向后兼容**：background 仍保留对旧 API 的兼容，但内部已统一使用文件系统
+## 消息类型
+
+| 消息类型 | 说明 |
+|---------|------|
+| `GET_ALL_FILES` | 获取所有文件，按类型过滤 |
+| `SAVE_FILE` | 保存单个文件 |
+| `SAVE_FILES` | 批量保存文件 |
+| `DELETE_FILE` | 删除单个文件 |
+| `DELETE_FILES` | 批量删除文件 |
+| `UPLOAD_ITEMS` | 上传选中的项目 |
 
 ## 依赖
+
 - `chrome.tabs`、`chrome.scripting`、`chrome.runtime`、`chrome.storage`
 - `../../src/utils/logger.js`、`constants.js`、`common-utils.js`、`html-cleaner.js`
 - `popup.css`（样式文件）
 
 ## 关键函数
+
 | 函数 | 作用 |
 |------|------|
 | `checkPlatformStatus()` | 根据当前 URL 判断平台并更新 UI |
@@ -46,6 +52,7 @@
 | `applyTheme()` | 从存储读取主题并应用 CSS 变量 |
 
 ## 注意事项
+
 - **内容脚本就绪检查**：上传前需确认 content script 已注入（通过 `PING` 消息），否则可能失败。
 - **清理统计**：保存页面后会显示清理节省的百分比（若启用清理规则）。
 - **跨域资源**：资源下载功能需注意 CORS 限制，目前仅下载同源或允许跨域的资源。

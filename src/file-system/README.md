@@ -23,6 +23,7 @@
 `FileEntity` 代表扩展中管理的任何可保存、可上传、可下载的内容。
 
 #### 属性
+
 - `id`: 唯一标识，格式：`file-{timestamp}-{random}`
 - `name`: 文件名（包含扩展名）
 - `content`: 文件内容（文本或 base64）
@@ -33,6 +34,7 @@
 - `metadata`: 额外的元数据
 
 #### 核心方法
+
 - `toBlob(options)`: 转换为 Blob（支持添加元数据注释）
 - `toFile(options)`: 转换为 File 对象（用于上传）
 - `download()`: 触发浏览器下载
@@ -40,11 +42,13 @@
 - `getMimeType()`: 获取 MIME 类型
 
 #### 静态工厂方法
+
 - `FileEntity.fromHTML(html, url, title)`: 从 HTML 创建
 - `FileEntity.fromResource(resource)`: 从资源对象创建
 - `FileEntity.fromJSON(obj)`: 从存储对象还原
 
 #### 使用示例
+
 ```javascript
 // 创建 HTML 文件
 const htmlFile = FileEntity.fromHTML(htmlContent, url, title);
@@ -68,6 +72,7 @@ const fileObj = htmlFile.toFile({ addMetadata: true });
 `FileStorage` 负责 IndexedDB 的读写操作。
 
 #### 核心方法
+
 - `async init()`: 初始化数据库
 - `async save(fileEntity)`: 保存单个文件
 - `async saveMany(fileEntities)`: 批量保存
@@ -82,10 +87,11 @@ const fileObj = htmlFile.toFile({ addMetadata: true });
 - `async count()`: 获取文件总数
 
 #### 使用示例
+
 ```javascript
 const storage = new FileStorage({
-  dbName: 'MyFileDB',
-  version: 1
+  NAME: 'MyFileDB',
+  VERSION: 3
 });
 
 await storage.init();
@@ -108,22 +114,28 @@ await storage.saveMany([file1, file2, file3]);
 `FileManager` 整合了 `FileEntity` 和 `FileStorage`，并提供更高级的功能。
 
 #### 核心方法
+
 - `async init()`: 初始化
 - `async saveFile(fileEntity)`: 保存文件
 - `async saveFiles(fileEntities)`: 批量保存
 - `async getFile(id)`: 获取文件
+- `async getFiles(ids)`: 批量获取文件
 - `async getAllFiles()`: 获取所有文件
 - `async getFilesByType(type)`: 按类型获取
+- `async getFilesByUrl(url)`: 按来源 URL 获取
 - `async deleteFile(id)`: 删除文件
+- `async deleteFiles(ids)`: 批量删除文件
+- `async clearAllFiles()`: 清空所有文件
+- `async getFileCount()`: 获取文件数量
 - `async downloadFile(fileEntity, options)`: 下载文件
 - `async uploadFile(fileEntity, uploader, options)`: 上传文件
 
 #### 使用示例
+
 ```javascript
 const fileManager = new FileManager({
   dbName: 'FileManagerDB',
-  version: 1,
-  useLegacyMode: true
+  version: 3
 });
 
 await fileManager.init();
@@ -141,6 +153,7 @@ await fileManager.downloadFile(file);
 提供文件类型、MIME 类型、扩展名等映射和推断功能。
 
 #### 主要工具函数
+
 - `inferTypeFromUrl(url)`: 从 URL 推断文件类型
 - `inferTypeFromContent(content)`: 从内容推断文件类型
 - `getMimeType(type, filename)`: 获取 MIME 类型
@@ -151,6 +164,7 @@ await fileManager.downloadFile(file);
 ## 文件类型系统
 
 ### 支持的文件类型
+
 ```javascript
 const FileTypes = {
   HTML: 'html',    // HTML 页面
@@ -163,6 +177,7 @@ const FileTypes = {
 ```
 
 ### MIME 类型映射
+
 ```javascript
 const MimeMap = {
   html: 'text/html',
@@ -179,6 +194,7 @@ const MimeMap = {
 文件在下载或上传时可以添加元数据注释，保留来源信息。
 
 ### 元数据注释格式
+
 ```javascript
 // HTML
 <!--
@@ -202,29 +218,26 @@ const MimeMap = {
 
 ## 消息系统
 
-在 Service Worker 中，可以通过消息类型使用文件管理器：
+在 Service Worker 中，可以通过消息类型使用文件管理器。所有消息类型定义在 `src/utils/constants.js` 的 `MESSAGE_TYPES` 中：
 
-### 消息类型（已合并到 MESSAGE_TYPES）
-```javascript
-// 所有消息类型定义在 src/utils/constants.js 的 MESSAGE_TYPES 中
-// 文件相关消息类型包括：
-const FILE_MESSAGE_TYPES = {
-  SAVE_FILE: 'SAVE_FILE',
-  SAVE_FILES: 'SAVE_FILES',
-  GET_FILE: 'GET_FILE',
-  GET_ALL_FILES: 'GET_ALL_FILES',
-  GET_FILES_BY_TYPE: 'GET_FILES_BY_TYPE',
-  DELETE_FILE: 'DELETE_FILE',
-  CLEAR_ALL_FILES: 'CLEAR_ALL_FILES',
-  CREATE_FILE_FROM_HTML: 'CREATE_FILE_FROM_HTML',
-  CREATE_FILE_FROM_RESOURCE: 'CREATE_FILE_FROM_RESOURCE'
-};
-
-// 注意：FILE_MESSAGE_TYPES 已废弃，请使用 MESSAGE_TYPES
-// 例如：MESSAGE_TYPES.SAVE_FILE, MESSAGE_TYPES.GET_FILE 等
-```
+| 消息类型 | 说明 |
+|---------|------|
+| `SAVE_FILE` | 保存单个文件 |
+| `SAVE_FILES` | 批量保存文件 |
+| `GET_FILE` | 获取单个文件 |
+| `GET_FILES` | 批量获取文件 |
+| `GET_ALL_FILES` | 获取所有文件 |
+| `GET_FILES_BY_TYPE` | 按类型获取文件 |
+| `GET_FILES_BY_URL` | 按来源 URL 获取文件 |
+| `DELETE_FILE` | 删除单个文件 |
+| `DELETE_FILES` | 批量删除文件 |
+| `CLEAR_ALL_FILES` | 清空所有文件 |
+| `GET_FILE_COUNT` | 获取文件数量 |
+| `CREATE_FILE_FROM_HTML` | 从 HTML 创建文件实体 |
+| `CREATE_FILE_FROM_RESOURCE` | 从资源创建文件实体 |
 
 ### 使用示例
+
 ```javascript
 // 保存文件
 chrome.runtime.sendMessage({
@@ -245,6 +258,7 @@ chrome.runtime.sendMessage({
 ## 完整使用流程
 
 ### 1. 保存网页
+
 ```javascript
 // 在 content script 或 popup 中
 const html = document.documentElement.outerHTML;
@@ -262,6 +276,7 @@ chrome.runtime.sendMessage({
 ```
 
 ### 2. 批量保存资源
+
 ```javascript
 const resources = [
   { url: 'style.css', content: '...', fileName: 'style.css' },
@@ -279,6 +294,7 @@ chrome.runtime.sendMessage({
 ```
 
 ### 3. 获取并下载文件
+
 ```javascript
 chrome.runtime.sendMessage({
   type: 'GET_FILE',
@@ -292,10 +308,11 @@ chrome.runtime.sendMessage({
 ```
 
 ### 4. 按类型筛选文件
+
 ```javascript
 chrome.runtime.sendMessage({
   type: 'GET_FILES_BY_TYPE',
-  type: 'css'
+  fileType: 'css'
 }, function(files) {
   console.log('CSS 文件列表:', files);
 });
@@ -338,17 +355,8 @@ background.js
   ├── file-system/file-types.js
   ├── file-system/file-entity.js
   ├── file-system/file-storage.js
-  ├── file-system/file-manager.js
-  └── db-manager.js (遗留兼容)
+  └── file-system/file-manager.js
 ```
-
-## 兼容性
-
-文件封装系统设计为与现有的 `db-manager.js` 兼容，可以渐进式迁移：
-
-1. 现有代码继续使用 `dbManager`
-2. 新功能使用 `fileManager`
-3. 通过 `useLegacyMode` 选项可以同时使用两者
 
 ## 测试建议
 

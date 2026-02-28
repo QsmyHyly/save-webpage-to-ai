@@ -147,7 +147,6 @@
   - `FileEntity`：统一的文件实体类，将页面和资源抽象为文件
   - `FileStorage`：IndexedDB 存储管理器
   - `FileManager`：统一文件管理接口，整合页面和资源管理
-  - 支持自动从旧数据库迁移数据
 - **Content Scripts**：分别注入到 DeepSeek 和通义千问页面，负责文件上传和发送
 - **chrome.scripting**：动态执行脚本获取当前页面 HTML
 - **DragEvent**：模拟拖拽事件实现文件上传
@@ -172,6 +171,28 @@
     - `shared-utils.js`：共享工具函数
   - `pages/popup/`：弹窗页面目录
   - `pages/resources/`：资源管理页面目录
+
+## 消息系统
+
+扩展使用统一的消息类型进行组件间通信，所有消息类型定义在 `src/utils/constants.js` 中：
+
+| 消息类型 | 说明 |
+|---------|------|
+| `SAVE_FILE` | 保存单个文件 |
+| `SAVE_FILES` | 批量保存文件 |
+| `GET_FILE` | 获取单个文件 |
+| `GET_FILES` | 批量获取文件 |
+| `GET_ALL_FILES` | 获取所有文件 |
+| `GET_FILES_BY_TYPE` | 按类型获取文件 |
+| `GET_FILES_BY_URL` | 按来源 URL 获取文件 |
+| `DELETE_FILE` | 删除单个文件 |
+| `DELETE_FILES` | 批量删除文件 |
+| `CLEAR_ALL_FILES` | 清空所有文件 |
+| `GET_FILE_COUNT` | 获取文件数量 |
+| `CREATE_FILE_FROM_HTML` | 从 HTML 创建文件实体 |
+| `CREATE_FILE_FROM_RESOURCE` | 从资源创建文件实体 |
+| `UPLOAD_ITEMS` | 上传选中的项目到 AI 平台 |
+| `RESET_DB` | 重置数据库 |
 
 ## 许可证
 
