@@ -1,14 +1,6 @@
 // constants.js - 常量定义
 // 集中管理所有常量，便于维护和修改
 
-// 数据库配置
-const DB_CONFIG = {
-  NAME: 'PageCacheDB',
-  VERSION: 2,
-  PAGES_STORE: 'pages',
-  RESOURCES_STORE: 'resources'
-};
-
 // AI 平台配置
 const PLATFORM = {
   DEEPSEEK: {
@@ -30,23 +22,6 @@ const STORAGE_KEYS = {
 
 // 消息类型
 const MESSAGE_TYPES = {
-  // === 旧消息类型（已废弃，仅保留兼容性）===
-  // 页面管理（废弃，用 SAVE_FILE 替代）
-  GET_ALL_PAGES: 'GET_ALL_PAGES',      // 保留，但内部改为从 FileStorage 获取
-  SAVE_PAGE: 'SAVE_PAGE',               // 废弃，使用 SAVE_FILE
-  DELETE_PAGE: 'DELETE_PAGE',           // 废弃，使用 DELETE_FILE
-  FIND_PAGE_BY_URL: 'FIND_PAGE_BY_URL', // 废弃，使用 GET_FILES_BY_URL
-  CLEAR_ALL_PAGES: 'CLEAR_ALL_PAGES',   // 废弃，使用 CLEAR_ALL_FILES
-  
-  // 资源管理（废弃，用 SAVE_FILE/GET_FILES_BY_TYPE 替代）
-  GET_RESOURCES_BY_PAGE_ID: 'GET_RESOURCES_BY_PAGE_ID', // 废弃
-  GET_ALL_RESOURCES: 'GET_ALL_RESOURCES', // 保留，但内部改为从 FileStorage 获取
-  GET_RESOURCE_BY_ID: 'GET_RESOURCE_BY_ID', // 保留，但内部改为从 FileStorage 获取
-  SAVE_RESOURCES: 'SAVE_RESOURCES',     // 废弃，使用 SAVE_FILES
-  DELETE_RESOURCE: 'DELETE_RESOURCE',   // 废弃，使用 DELETE_FILE
-  DELETE_RESOURCES_BY_PAGE_ID: 'DELETE_RESOURCES_BY_PAGE_ID', // 废弃
-  
-  // === 新文件系统消息（推荐使用）===
   // 文件管理
   SAVE_FILE: 'SAVE_FILE',
   SAVE_FILES: 'SAVE_FILES',
@@ -55,22 +30,21 @@ const MESSAGE_TYPES = {
   GET_ALL_FILES: 'GET_ALL_FILES',
   GET_FILES_BY_TYPE: 'GET_FILES_BY_TYPE',
   GET_FILES_BY_URL: 'GET_FILES_BY_URL',
-  GET_FILES_BY_SOURCE: 'GET_FILES_BY_SOURCE', // 按来源URL获取
+  GET_FILES_BY_SOURCE: 'GET_FILES_BY_SOURCE',
   DELETE_FILE: 'DELETE_FILE',
   DELETE_FILES: 'DELETE_FILES',
   CLEAR_ALL_FILES: 'CLEAR_ALL_FILES',
   GET_FILE_COUNT: 'GET_FILE_COUNT',
   DOWNLOAD_FILE: 'DOWNLOAD_FILE',
-  
+
   // 工厂方法
   CREATE_FILE_FROM_HTML: 'CREATE_FILE_FROM_HTML',
   CREATE_FILE_FROM_RESOURCE: 'CREATE_FILE_FROM_RESOURCE',
-  
-  // === 其他消息 ===
+
   // 上传相关
   UPLOAD_PAGES: 'UPLOAD_PAGES',
   UPLOAD_ITEMS: 'UPLOAD_ITEMS',
-  
+
   // 数据库管理
   RESET_DB: 'RESET_DB'
 };

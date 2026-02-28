@@ -7,15 +7,11 @@
   class FileStorage {
     constructor(dbConfig) {
       this.dbName = dbConfig?.NAME || 'FileStorageDB';
-      this.version = dbConfig?.VERSION || 1;
+      this.version = dbConfig?.VERSION || 3;
       this.db = null;
       this.initPromise = null;
       this.initAttempts = 0;
       this.maxInitRetries = 3;
-      this.stores = dbConfig?.STORES || {
-        files: 'files',
-        pages: 'pages'
-      };
     }
 
     async init() {
@@ -38,22 +34,20 @@
         request.onupgradeneeded = (e) => {
           const database = e.target.result;
           self.logger?.info('FileStorage 数据库升级，当前版本:', e.oldVersion, '新版本:', e.newVersion);
-          
+
+          // 删除旧的 pages store（如果存在）
+          if (database.objectStoreNames.contains('pages')) {
+            self.logger?.info('删除旧的 pages store');
+            database.deleteObjectStore('pages');
+          }
+
           // 创建 files store
-          if (!database.objectStoreNames.contains(this.stores.files)) {
+          if (!database.objectStoreNames.contains('files')) {
             self.logger?.info('创建 files store');
-            const store = database.createObjectStore(this.stores.files, { keyPath: 'id' });
+            const store = database.createObjectStore('files', { keyPath: 'id' });
             store.createIndex('type', 'type', { unique: false });
             store.createIndex('sourceUrl', 'source.url', { unique: false });
             store.createIndex('createdAt', 'createdAt', { unique: false });
-          }
-          
-          // 创建 pages store（为了兼容现有数据）
-          if (!database.objectStoreNames.contains(this.stores.pages)) {
-            self.logger?.info('创建 pages store');
-            const store = database.createObjectStore(this.stores.pages, { keyPath: 'id' });
-            store.createIndex('savedAt', 'savedAt', { unique: false });
-            store.createIndex('url', 'url', { unique: false });
           }
         };
 
@@ -92,7 +86,7 @@
     async save(fileEntity) {
       await this._ensureDb();
       try {
-        const store = this.objectStore(this.stores.files, 'readwrite');
+        const store = this.objectStore('files', 'readwrite');
         return new Promise((resolve, reject) => {
           const req = store.put(fileEntity.toJSON());
           req.onsuccess = () => resolve(fileEntity.id);
@@ -110,28 +104,28 @@
     async saveMany(fileEntities) {
       await this._ensureDb();
       try {
-        const store = this.objectStore(this.stores.files, 'readwrite');
-        const transaction = this.transaction(this.stores.files, 'readwrite');
-        
+        const store = this.objectStore('files', 'readwrite');
+        const transaction = this.transaction('files', 'readwrite');
+
         return new Promise((resolve, reject) => {
           let completed = 0;
           let errors = [];
-          
+
           if (fileEntities.length === 0) {
             resolve([]);
             return;
           }
-          
+
           fileEntities.forEach((entity, index) => {
             const req = store.put(entity.toJSON());
-            
+
             req.onsuccess = () => {
               completed++;
               if (completed === fileEntities.length) {
                 resolve(fileEntities.map(e => e.id));
               }
             };
-            
+
             req.onerror = (e) => {
               errors[index] = e.target.error;
               completed++;
@@ -154,7 +148,7 @@
     async get(id) {
       await this._ensureDb();
       try {
-        const store = this.objectStore(this.stores.files, 'readonly');
+        const store = this.objectStore('files', 'readonly');
         return new Promise((resolve, reject) => {
           const req = store.get(id);
           req.onsuccess = () => {
@@ -178,20 +172,20 @@
     async getMany(ids) {
       await this._ensureDb();
       try {
-        const store = this.objectStore(this.stores.files, 'readonly');
+        const store = this.objectStore('files', 'readonly');
         return new Promise((resolve, reject) => {
           const results = [];
           let completed = 0;
           let errors = [];
-          
+
           if (ids.length === 0) {
             resolve([]);
             return;
           }
-          
+
           ids.forEach((id, index) => {
             const req = store.get(id);
-            
+
             req.onsuccess = () => {
               results[index] = req.result ? FileEntity.fromJSON(req.result) : null;
               completed++;
@@ -199,7 +193,7 @@
                 resolve(results.filter(Boolean));
               }
             };
-            
+
             req.onerror = (e) => {
               errors[index] = e.target.error;
               completed++;
@@ -222,7 +216,7 @@
     async getAll() {
       await this._ensureDb();
       try {
-        const store = this.objectStore(this.stores.files, 'readonly');
+        const store = this.objectStore('files', 'readonly');
         return new Promise((resolve, reject) => {
           const req = store.getAll();
           req.onsuccess = () => {
@@ -242,7 +236,7 @@
     async getByType(type) {
       await this._ensureDb();
       try {
-        const store = this.objectStore(this.stores.files, 'readonly');
+        const store = this.objectStore('files', 'readonly');
         const index = store.index('type');
         return new Promise((resolve, reject) => {
           const req = index.getAll(IDBKeyRange.only(type));
@@ -263,7 +257,7 @@
     async getBySourceUrl(url) {
       await this._ensureDb();
       try {
-        const store = this.objectStore(this.stores.files, 'readonly');
+        const store = this.objectStore('files', 'readonly');
         const index = store.index('sourceUrl');
         return new Promise((resolve, reject) => {
           const req = index.getAll(IDBKeyRange.only(url));
@@ -284,7 +278,7 @@
     async delete(id) {
       await this._ensureDb();
       try {
-        const store = this.objectStore(this.stores.files, 'readwrite');
+        const store = this.objectStore('files', 'readwrite');
         return new Promise((resolve, reject) => {
           const req = store.delete(id);
           req.onsuccess = () => resolve();
@@ -302,26 +296,26 @@
     async deleteMany(ids) {
       await this._ensureDb();
       try {
-        const store = this.objectStore(this.stores.files, 'readwrite');
+        const store = this.objectStore('files', 'readwrite');
         return new Promise((resolve, reject) => {
           let completed = 0;
           let errors = [];
-          
+
           if (ids.length === 0) {
             resolve();
             return;
           }
-          
+
           ids.forEach((id, index) => {
             const req = store.delete(id);
-            
+
             req.onsuccess = () => {
               completed++;
               if (completed === ids.length) {
                 resolve();
               }
             };
-            
+
             req.onerror = (e) => {
               errors[index] = e.target.error;
               completed++;
@@ -344,7 +338,7 @@
     async clear() {
       await this._ensureDb();
       try {
-        const store = this.objectStore(this.stores.files, 'readwrite');
+        const store = this.objectStore('files', 'readwrite');
         return new Promise((resolve, reject) => {
           const req = store.clear();
           req.onsuccess = () => resolve();
@@ -362,7 +356,7 @@
     async count() {
       await this._ensureDb();
       try {
-        const store = this.objectStore(this.stores.files, 'readonly');
+        const store = this.objectStore('files', 'readonly');
         return new Promise((resolve, reject) => {
           const req = store.count();
           req.onsuccess = () => resolve(req.result);

@@ -1,5 +1,5 @@
 // file-manager.js - 统一文件管理器
-// 整合 FileEntity、FileStorage 和现有 DBManager 的功能
+// 整合 FileEntity 和 FileStorage 的功能
 
 (function(global) {
   const { FileEntity } = global;
@@ -10,22 +10,12 @@
     constructor(options = {}) {
       this.fileStorage = new FileStorage({
         NAME: options.dbName || 'FileManagerDB',
-        VERSION: options.version || 1,
-        STORES: {
-          files: 'files',
-          pages: 'pages'
-        }
+        VERSION: options.version || 3
       });
-      
-      this.dbManager = global.dbManager || null;
-      this.useLegacyMode = options.useLegacyMode || false;
     }
 
     async init() {
       await this.fileStorage.init();
-      if (this.useLegacyMode && this.dbManager) {
-        await this.dbManager.init();
-      }
     }
 
     async saveFile(fileEntity) {
@@ -78,56 +68,6 @@
       return await this.fileStorage.count();
     }
 
-    async savePageLegacy(data) {
-      if (!this.dbManager) {
-        throw new Error('未提供 dbManager，无法使用遗留模式');
-      }
-      return await this.dbManager.savePage(data);
-    }
-
-    async getPageLegacy(id) {
-      if (!this.dbManager) {
-        throw new Error('未提供 dbManager，无法使用遗留模式');
-      }
-      const pages = await this.dbManager.getAllPages();
-      return pages.find(p => p.id === id) || null;
-    }
-
-    async deletePageLegacy(id) {
-      if (!this.dbManager) {
-        throw new Error('未提供 dbManager，无法使用遗留模式');
-      }
-      return await this.dbManager.deletePage(id);
-    }
-
-    async getAllPagesLegacy() {
-      if (!this.dbManager) {
-        throw new Error('未提供 dbManager，无法使用遗留模式');
-      }
-      return await this.dbManager.getAllPages();
-    }
-
-    async saveResourceLegacy(resource) {
-      if (!this.dbManager) {
-        throw new Error('未提供 dbManager，无法使用遗留模式');
-      }
-      return await this.dbManager.saveResource(resource);
-    }
-
-    async getResourcesByPageIdLegacy(pageId) {
-      if (!this.dbManager) {
-        throw new Error('未提供 dbManager，无法使用遗留模式');
-      }
-      return await this.dbManager.getResourcesByPageId(pageId);
-    }
-
-    async deleteResourceLegacy(id) {
-      if (!this.dbManager) {
-        throw new Error('未提供 dbManager，无法使用遗留模式');
-      }
-      return await this.dbManager.deleteResource(id);
-    }
-
     createFileFromHTML(html, url, title) {
       return FileEntity.fromHTML(html, url, title);
     }
@@ -153,9 +93,6 @@
 
     async close() {
       await this.fileStorage.close();
-      if (this.dbManager) {
-        await this.dbManager.close();
-      }
     }
   }
 
