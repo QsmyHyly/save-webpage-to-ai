@@ -16,8 +16,6 @@
       <button id="saveJsBtn" class="btn btn-secondary">📜 只获取JS</button>
       <button id="saveCssBtn" class="btn btn-secondary">🎨 只获取CSS</button>
       <button id="manageResourcesBtn" class="btn btn-secondary">📦 查看页面资源</button>
-      <button id="selectAllBtn" class="btn btn-secondary">全选</button>
-      <button id="deselectAllBtn" class="btn btn-secondary">取消全选</button>
     </div>
   </div>
 
@@ -28,6 +26,11 @@
     </div>
 
     <div class="section-title">
+      <div class="select-all-checkbox" id="selectAllCheckbox" title="点击切换全选/取消全选">
+        <input type="checkbox" id="selectAllInput">
+        <span class="checkbox-icon"></span>
+        <span class="select-all-text">全选</span>
+      </div>
       📄 已保存的文件
       <span id="fileCount" class="count">0</span>
     </div>
@@ -64,7 +67,13 @@
   <script src="../../src/utils/shared-utils.js"></script>
   <script src="../../src/utils/common-utils.js"></script>
 
-  <!-- 2. 主逻辑 -->
+  <!-- 2. 自定义模块，按依赖顺序 -->
+  <script src="modules/utils.js"></script>
+  <script src="modules/file-list.js"></script>
+  <script src="modules/save-handlers.js"></script>
+  <script src="modules/upload-handler.js"></script>
+
+  <!-- 3. 主入口 -->
   <script src="popup.js"></script>
 </body>
 </html>

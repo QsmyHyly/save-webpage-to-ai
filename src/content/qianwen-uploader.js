@@ -50,15 +50,18 @@
 
             } else if (item.kind === 'resource') {
               // 使用新的文件系统 API 获取资源
-              var file = await chrome.runtime.sendMessage({
+              var response = await chrome.runtime.sendMessage({
                 type: MESSAGE_TYPES.GET_FILE,
                 id: item.id
               });
 
-              if (!file) {
-                logger.error('获取资源失败:', item.id);
+              // 检查错误响应
+              if (!response || response.status === 'error') {
+                logger.error('获取资源失败:', item.id, response?.message);
                 continue;
               }
+
+              var file = response; // 成功时返回文件对象
 
               // 转换为兼容格式
               var resource = {

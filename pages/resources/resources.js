@@ -61,9 +61,13 @@ async function loadCurrentResources() {
       type: MESSAGE_TYPES.GET_ALL_FILES
     });
 
+    // 检查错误响应
+    if (allFiles && allFiles.status === 'error') {
+      throw new Error(allFiles.message);
+    }
+
     if (!Array.isArray(allFiles)) {
-      showResourceEmptyState('resourcesList', '加载失败');
-      return;
+      throw new Error('返回数据格式错误');
     }
 
     // 过滤出非 HTML 文件
@@ -320,7 +324,12 @@ async function deleteSelectedResources() {
   if (!confirm(`确定删除选中的 ${ids.length} 个资源吗？`)) return;
 
   try {
-    await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.DELETE_FILES, ids });
+    const response = await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.DELETE_FILES, ids });
+
+    if (response && response.status === 'error') {
+      throw new Error(response.message);
+    }
+
     await loadCurrentResources();
     updateDeleteButtonState();
   } catch (error) {
@@ -337,10 +346,15 @@ async function deleteResource(savedId) {
   
   try {
     // 使用新消息删除
-    await chrome.runtime.sendMessage({
+    const response = await chrome.runtime.sendMessage({
       type: MESSAGE_TYPES.DELETE_FILE,
       id: savedId
     });
+
+    if (response && response.status === 'error') {
+      throw new Error(response.message);
+    }
+
     await loadCurrentResources();
   } catch (error) {
     logger.error('删除资源失败:', error);
