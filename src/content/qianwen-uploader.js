@@ -49,18 +49,33 @@
               blob = new Blob([wrappedHtml], { type: 'text/html' });
 
             } else if (item.kind === 'resource') {
-              var resource = await chrome.runtime.sendMessage({
-                type: MESSAGE_TYPES.GET_RESOURCE_BY_ID,
+              // 使用新的文件系统 API 获取资源
+              var file = await chrome.runtime.sendMessage({
+                type: MESSAGE_TYPES.GET_FILE,
                 id: item.id
               });
 
-              if (!resource) {
+              if (!file) {
                 logger.error('获取资源失败:', item.id);
                 continue;
               }
 
+              // 转换为兼容格式
+              var resource = {
+                content: file.content,
+                type: file.type,
+                metadata: {
+                  filename: file.name,
+                  ...file.metadata
+                },
+                mimeType: file.type === 'html' ? 'text/html' :
+                          file.type === 'css' ? 'text/css' :
+                          file.type === 'js' ? 'application/javascript' :
+                          'application/octet-stream'
+              };
+
               blob = prepareFileContent(resource);
-              fileName = resource.metadata ? resource.metadata.filename : 'resource';
+              fileName = file.name || file.metadata?.filename || 'resource';
 
             } else {
               continue;

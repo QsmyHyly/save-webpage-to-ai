@@ -482,7 +482,7 @@ async function loadProfiles() {
   // 如果有迁移，保存更新后的配置
   if (migrated) {
     await saveProfiles(profiles);
-    console.log('[配置迁移] 已将旧格式规则迁移为统一格式');
+    logger.info('[配置迁移] 已将旧格式规则迁移为统一格式');
   }
 }
 

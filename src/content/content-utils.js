@@ -1,10 +1,20 @@
 // content-utils.js - 内容脚本共享工具模块
 // 包含 deepseek-content.js 和 qianwen-uploader.js 的公共函数
+//
+// 重要说明：
+// 此文件中的部分函数与 shared-utils.js 中的函数功能相同
+// 但由于内容脚本运行在隔离环境（isolated world），无法直接使用其他脚本中的函数
+// 因此需要在此文件中保留独立实现
+//
+// 修改这些函数时，请同步更新 src/utils/shared-utils.js：
+// - formatSize
+// - wrapHtmlWithMetadata
+// - formatMetadataComment
+// - showNotification
 
-// 注意：此文件中的 formatSize 和 wrapHtmlWithMetadata 与 common-utils.js 中的函数功能相同
-// 但由于内容脚本运行在隔离环境，无法直接使用 common-utils.js，故保留此实现
-
-// 格式化文件大小
+// ============================================================================
+// 格式化函数（与 shared-utils.js 同步）
+// ============================================================================
 function formatSize(bytes) {
   if (bytes < 1024) return bytes + ' B';
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -37,16 +47,26 @@ function formatMetadataComment(metadata, type) {
 
 /**
  * 准备文件内容，为文本类型添加元数据注释
- * @param {Object} resource - 资源对象
+ * @param {Object} resource - 资源对象（兼容新旧格式和 FileEntity 格式）
  * @returns {Blob} 处理后的 Blob 对象
  */
 function prepareFileContent(resource) {
-  const { content, type, metadata, mimeType } = resource;
+  // 支持 FileEntity 格式
+  const content = resource.content;
+  const type = resource.type;
+  const metadata = resource.metadata || {};
+  
+  // 获取 MIME 类型
+  const mimeType = resource.mimeType || 
+                   (type === 'html' ? 'text/html' :
+                    type === 'css' ? 'text/css' :
+                    type === 'js' ? 'application/javascript' :
+                    'application/octet-stream');
   
   // 文本类型添加元数据注释
   if (['css', 'js', 'html', 'other'].includes(type) && typeof content === 'string') {
     const metaComment = formatMetadataComment(metadata, type);
-    return new Blob([metaComment + content], { type: mimeType || 'text/plain' });
+    return new Blob([metaComment + content], { type: mimeType });
   }
   
   // 二进制（如图片）将 base64 转换为 Blob
@@ -58,10 +78,10 @@ function prepareFileContent(resource) {
     for (let i = 0; i < byteString.length; i++) {
       ia[i] = byteString.charCodeAt(i);
     }
-    return new Blob([ab], { type: mimeType || 'application/octet-stream' });
+    return new Blob([ab], { type: mimeType });
   }
   
-  return new Blob([content], { type: mimeType || 'application/octet-stream' });
+  return new Blob([content], { type: mimeType });
 }
 
 /**

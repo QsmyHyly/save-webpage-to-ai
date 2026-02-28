@@ -11,12 +11,31 @@
 
 ## 数据流
 - **加载资源**：
-  1. 优先读取 `chrome.storage.local` 中的 `currentResources`（由 popup 设置）。
-  2. 若无，则向 background 请求 `GET_ALL_RESOURCES`。
+  1. 优先读取 `chrome.storage.local` 中的 `currentResources`（由 popup 设置的临时资源）。
+  2. 若无临时资源，则向 background 请求 `GET_ALL_FILES`，过滤出非 HTML 类型的文件作为资源。
 - **保存资源**：
   1. 选中资源 → 调用 `fetchResource()` 下载（图片转为 Base64，文本保持原样）。
-  2. 构造保存对象 → 发送 `SAVE_RESOURCES` 消息。
+  2. 构造 `FileEntity` 对象（包含 id、name、content、type、source、createdAt、metadata）→ 发送 `SAVE_FILES` 消息批量保存。
   3. 保存成功后重新加载列表。
+
+## 文件系统 API 迁移（v3.0）
+- **旧 API（已废弃）**：`GET_ALL_RESOURCES`、`SAVE_RESOURCES`、`DELETE_RESOURCE`
+- **新 API（推荐）**：
+  - `GET_ALL_FILES`：获取所有文件，过滤非 HTML 类型作为资源
+  - `SAVE_FILES`：批量保存资源（传入 FileEntity 数组）
+  - `DELETE_FILE`：删除单个资源
+- **FileEntity 格式**：
+  ```javascript
+  {
+    id: 'res-xxx',           // 资源ID
+    name: 'style.css',       // 文件名
+    content: '...',          // 内容（文本或 base64）
+    type: 'css',             // 类型：css/js/image/font/other
+    source: { url: '...' },  // 来源信息
+    createdAt: timestamp,    // 创建时间
+    metadata: { ... }        // 元数据（sourcePageUrl, sourcePageTitle等）
+  }
+  ```
 
 ## 依赖
 - `chrome.runtime`、`chrome.storage`

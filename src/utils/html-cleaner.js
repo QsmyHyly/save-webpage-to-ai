@@ -1,9 +1,37 @@
 // html-cleaner.js - HTML 内容清理模块（管道式架构）
 // 用于在保存页面时过滤掉冗长但低信息密度的内容
+// 
+// 架构说明：
+// - 使用规则引擎统一处理元素屏蔽逻辑
+// - 清理器按管道顺序执行，每个清理器专注于一种清理任务
+// - 配置通过构造函数传入，不再自行加载 storage
+//
+// 日志说明：
+// - 此文件运行在 popup 环境，可通过 logger.js 输出日志
+// - 如需统一日志，请在使用前先加载 logger.js
 
 // ============================================================================
 // 工具函数
 // ============================================================================
+
+/**
+ * 安全日志输出（兼容 logger.js 和 console）
+ */
+const cleanerLog = {
+  _getLogger: function() {
+    // 优先使用 logger.js（如果已加载）
+    if (typeof logger !== 'undefined') return logger;
+    // 降级使用 console
+    return {
+      info: function() { console.log.apply(console, arguments); },
+      warn: function() { console.warn.apply(console, arguments); },
+      error: function() { console.error.apply(console, arguments); }
+    };
+  },
+  info: function() { this._getLogger().info.apply(this._getLogger(), arguments); },
+  warn: function() { this._getLogger().warn.apply(this._getLogger(), arguments); },
+  error: function() { this._getLogger().error.apply(this._getLogger(), arguments); }
+};
 
 /**
  * 格式化文件大小
@@ -21,6 +49,76 @@ function formatSize(bytes) {
  */
 function generateId() {
   return 'cleaner-' + Date.now() + '-' + Math.random().toString(36).substring(2, 11);
+}
+
+// ============================================================================
+// 规则引擎相关（内联定义，避免依赖）
+// ============================================================================
+
+/**
+ * 规则类型
+ */
+const RULE_TYPES = {
+  CSS: 'css',
+  ATTRIBUTE: 'attribute'
+};
+
+/**
+ * 检查规则是否启用
+ */
+function isRuleEnabled(rule) {
+  return rule && rule.enabled !== false;
+}
+
+/**
+ * 属性值匹配
+ */
+function matchAttributeCondition(attrValue, cond) {
+  const { op, value } = cond;
+  
+  if (op === 'exists') return attrValue !== null;
+  if (op === 'notExists') return attrValue === null;
+  if (attrValue === null) return false;
+
+  switch (op) {
+    case 'contains': return attrValue.includes(String(value));
+    case 'startsWith': return attrValue.startsWith(String(value));
+    case 'endsWith': return attrValue.endsWith(String(value));
+    case 'equals': return attrValue === String(value);
+    case 'regex':
+      try { return new RegExp(value, 'i').test(attrValue); }
+      catch (e) { return false; }
+  }
+
+  // 数值比较
+  const numOps = ['>', '<', '>=', '<=', '=='];
+  if (numOps.includes(op)) {
+    const num = parseFloat(attrValue);
+    const target = parseFloat(value);
+    if (isNaN(num) || isNaN(target)) return false;
+    switch (op) {
+      case '>': return num > target;
+      case '<': return num < target;
+      case '>=': return num >= target;
+      case '<=': return num <= target;
+      case '==': return num === target;
+    }
+  }
+
+  // 长度比较
+  const lenOps = ['length>', 'length<', 'length=='];
+  if (lenOps.includes(op)) {
+    const len = attrValue.length;
+    const targetLen = parseInt(value, 10);
+    if (isNaN(targetLen)) return false;
+    switch (op) {
+      case 'length>': return len > targetLen;
+      case 'length<': return len < targetLen;
+      case 'length==': return len === targetLen;
+    }
+  }
+
+  return false;
 }
 
 // ============================================================================
@@ -194,12 +292,18 @@ class BaseCleaner {
 // ============================================================================
 
 /**
- * 元素屏蔽清理器
- * 根据配置的 CSS 选择器移除匹配的元素
+ * 基于规则的元素屏蔽清理器
+ * 使用 RuleEngine 统一处理 CSS 选择器和属性条件两种规则类型
+ * 
+ * 依赖：需要先加载 rule-types.js, rule-matcher.js, rule-engine.js
+ * 
+ * 规则格式：
+ * - CSS 规则: { type: 'css', selector: '.ad-banner', enabled: true }
+ * - 属性规则: { type: 'attribute', conditions: [...], match: 'all', enabled: true }
  */
-class ElementBlockerCleaner extends BaseCleaner {
+class RuleBasedCleaner extends BaseCleaner {
   constructor() {
-    super('ElementBlockerCleaner');
+    super('RuleBasedCleaner');
   }
 
   isEnabled(config) {
@@ -208,7 +312,7 @@ class ElementBlockerCleaner extends BaseCleaner {
 
   clean(html, baseUrl, config) {
     const rules = config.elementBlocking?.rules || [];
-    const enabledRules = rules.filter(r => r.enabled && r.selector);
+    const enabledRules = rules.filter(isRuleEnabled);
     
     if (enabledRules.length === 0) {
       return { output: html, stat: { removedElements: 0 } };
@@ -217,31 +321,93 @@ class ElementBlockerCleaner extends BaseCleaner {
     try {
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
-      let removedCount = 0;
-
-      enabledRules.forEach(rule => {
-        try {
-          const elements = doc.querySelectorAll(rule.selector);
-          elements.forEach(el => {
-            el.remove();
-            removedCount++;
-          });
-        } catch (e) {
-          console.warn(`[元素屏蔽] 无效选择器: ${rule.selector}`, e.message);
-        }
-      });
-
-      const output = doc.documentElement.outerHTML;
+      
+      // 使用 RuleEngine 执行规则
+      // 检查 RuleEngine 是否可用（可能未加载规则引擎脚本）
+      if (typeof RuleEngine === 'undefined') {
+        // 降级到内联实现
+        cleanerLog.warn('[RuleBasedCleaner] RuleEngine 未加载，使用降级实现');
+        return this._cleanWithFallback(doc, html, enabledRules);
+      }
+      
+      // 创建规则引擎实例
+      const registry = typeof globalRegistry !== 'undefined' ? globalRegistry : null;
+      const engine = new RuleEngine(registry);
+      engine.loadRules(enabledRules);
+      
+      // 执行清理
+      const { removedCount, stats } = engine.execute(doc);
+      
       return {
-        output,
-        stat: { removedElements: removedCount }
+        output: doc.documentElement.outerHTML,
+        stat: {
+          removedElements: removedCount,
+          ruleStats: stats?.ruleStats || {}
+        }
       };
     } catch (e) {
-      console.warn('[元素屏蔽] DOM 解析失败:', e);
+      cleanerLog.warn('[RuleBasedCleaner] 执行失败:', e);
       return { output: html, stat: { removedElements: 0, error: e.message } };
     }
   }
+
+  /**
+   * 降级实现（当 RuleEngine 不可用时）
+   * 保持与 RuleEngine 相同的行为
+   */
+  _cleanWithFallback(doc, originalHtml, enabledRules) {
+    const removedElements = new Set();
+    const ruleStats = {};
+
+    enabledRules.forEach(rule => {
+      let elements = [];
+      
+      if (rule.type === RULE_TYPES.CSS && rule.selector) {
+        try {
+          elements = Array.from(doc.querySelectorAll(rule.selector));
+        } catch (e) {
+          cleanerLog.warn(`[RuleBasedCleaner] 无效选择器: ${rule.selector}`);
+        }
+      } else if (rule.type === RULE_TYPES.ATTRIBUTE && rule.conditions?.length > 0) {
+        const selector = rule.tag ? rule.tag.toLowerCase() : '*';
+        try {
+          const candidates = doc.querySelectorAll(selector);
+          elements = Array.from(candidates).filter(el => {
+            const matchMode = rule.match || 'all';
+            const results = rule.conditions.map(cond => {
+              const attrValue = el.getAttribute(cond.attr);
+              return matchAttributeCondition(attrValue, cond);
+            });
+            return matchMode === 'any' ? results.some(Boolean) : results.every(Boolean);
+          });
+        } catch (e) {
+          cleanerLog.warn(`[RuleBasedCleaner] 属性规则执行失败:`, e.message);
+        }
+      }
+
+      elements.forEach(el => {
+        if (!removedElements.has(el) && el.parentNode) {
+          el.remove();
+          removedElements.add(el);
+          ruleStats[rule.id || rule.selector || 'unknown'] = 
+            (ruleStats[rule.id || rule.selector || 'unknown'] || 0) + 1;
+        }
+      });
+    });
+
+    return {
+      output: doc.documentElement.outerHTML,
+      stat: {
+        removedElements: removedElements.size,
+        ruleStats
+      }
+    };
+  }
 }
+
+// 向后兼容别名
+const ElementBlockerCleaner = RuleBasedCleaner;
+const AttributeBasedBlocker = RuleBasedCleaner;
 
 /**
  * 追踪链接清理器
@@ -335,7 +501,7 @@ class TrackingLinkCleaner extends BaseCleaner {
         stat: { purifiedLinks: purifiedCount }
       };
     } catch (e) {
-      console.warn('[追踪链接清理] DOM 解析失败:', e);
+      cleanerLog.warn('[追踪链接清理] DOM 解析失败:', e);
       return { output: html, stat: { purifiedLinks: 0, error: e.message } };
     }
   }
@@ -516,172 +682,6 @@ class DataAttributeCleaner extends BaseCleaner {
   }
 }
 
-/**
- * 基于属性值的元素屏蔽清理器
- * 根据元素属性值的条件判断来移除元素，支持比 CSS 选择器更复杂的匹配逻辑
- * 
- * 规则格式:
- * {
- *   id: 'rule-xxx',
- *   type: 'attribute',
- *   tag: 'img',           // 可选，限制标签类型
- *   conditions: [
- *     { attr: 'src', op: 'contains', value: 'utm_' },
- *     { attr: 'style', op: 'length>', value: 5000 }
- *   ],
- *   match: 'all',         // 'all' 或 'any'
- *   enabled: true,
- *   description: '描述'
- * }
- * 
- * 支持的操作符:
- * - contains: 包含字符串
- * - startsWith: 前缀匹配
- * - endsWith: 后缀匹配
- * - regex: 正则匹配
- * - >, <, >=, <=, ==: 数值比较
- * - length>, length<, length==: 字符串长度比较
- * - exists: 属性存在性检查
- */
-class AttributeBasedBlocker extends BaseCleaner {
-  constructor() {
-    super('AttributeBasedBlocker');
-  }
-
-  isEnabled(config) {
-    return config.attributeBlocking?.enabled ?? true;
-  }
-
-  /**
-   * 检查单个条件是否匹配
-   */
-  matchCondition(attrValue, cond) {
-    if (cond.op === 'exists') {
-      return attrValue !== null;
-    }
-
-    if (attrValue === null) {
-      return false;
-    }
-
-    switch (cond.op) {
-      case 'contains':
-        return attrValue.includes(cond.value);
-      
-      case 'startsWith':
-        return attrValue.startsWith(cond.value);
-      
-      case 'endsWith':
-        return attrValue.endsWith(cond.value);
-      
-      case 'regex':
-        try {
-          return new RegExp(cond.value, 'i').test(attrValue);
-        } catch (e) {
-          console.warn('[属性屏蔽] 无效正则:', cond.value);
-          return false;
-        }
-      
-      case '>':
-      case '<':
-      case '>=':
-      case '<=':
-      case '==': {
-        const num = parseFloat(attrValue);
-        if (isNaN(num)) return false;
-        const targetValue = parseFloat(cond.value);
-        if (isNaN(targetValue)) return false;
-        switch (cond.op) {
-          case '>': return num > targetValue;
-          case '<': return num < targetValue;
-          case '>=': return num >= targetValue;
-          case '<=': return num <= targetValue;
-          case '==': return num === targetValue;
-        }
-        return false;
-      }
-      
-      case 'length>':
-      case 'length<':
-      case 'length==': {
-        const len = attrValue.length;
-        const targetLen = parseInt(cond.value, 10);
-        if (isNaN(targetLen)) return false;
-        switch (cond.op) {
-          case 'length>': return len > targetLen;
-          case 'length<': return len < targetLen;
-          case 'length==': return len === targetLen;
-        }
-        return false;
-      }
-      
-      default:
-        return false;
-    }
-  }
-
-  /**
-   * 检查元素是否匹配规则
-   */
-  matchesRule(element, rule) {
-    const conditions = rule.conditions || [];
-    if (conditions.length === 0) return false;
-
-    const matchType = rule.match || 'all';
-    const results = conditions.map(cond => {
-      const attrValue = element.getAttribute(cond.attr);
-      return this.matchCondition(attrValue, cond);
-    });
-
-    return matchType === 'any' 
-      ? results.some(Boolean) 
-      : results.every(Boolean);
-  }
-
-  clean(html, baseUrl, config) {
-    const rules = config.attributeBlocking?.rules || [];
-    const enabledRules = rules.filter(r => r.enabled && r.type === 'attribute' && r.conditions?.length > 0);
-    
-    if (enabledRules.length === 0) {
-      return { output: html, stat: { removedByAttribute: 0 } };
-    }
-
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
-      let removedCount = 0;
-
-      enabledRules.forEach(rule => {
-        let selector = '*';
-        if (rule.tag) {
-          selector = rule.tag.toLowerCase();
-        }
-        
-        try {
-          const elements = doc.querySelectorAll(selector);
-          elements.forEach(el => {
-            if (this.matchesRule(el, rule)) {
-              el.remove();
-              removedCount++;
-            }
-          });
-        } catch (e) {
-          console.warn(`[属性屏蔽] 规则执行失败:`, rule.id, e.message);
-        }
-      });
-
-      const output = doc.documentElement.outerHTML;
-      return {
-        output,
-        stat: { removedByAttribute: removedCount }
-      };
-    } catch (e) {
-      console.warn('[属性屏蔽] DOM 解析失败:', e);
-      return { output: html, stat: { removedByAttribute: 0, error: e.message } };
-    }
-  }
-}
-
 // ============================================================================
 // HtmlCleaner 核心类
 // ============================================================================
@@ -724,8 +724,8 @@ class HtmlCleaner {
    */
   initCleaners() {
     // 注册顺序即执行顺序
-    this.registerCleaner(new ElementBlockerCleaner());
-    this.registerCleaner(new AttributeBasedBlocker());
+    // RuleBasedCleaner 统一处理 CSS 和属性规则
+    this.registerCleaner(new RuleBasedCleaner());
     this.registerCleaner(new TrackingLinkCleaner());
     this.registerCleaner(new InlineStyleCleaner());
     this.registerCleaner(new ScriptCleaner());
@@ -740,7 +740,7 @@ class HtmlCleaner {
     if (cleaner instanceof BaseCleaner) {
       this.cleaners.push(cleaner);
     } else {
-      console.warn('[HtmlCleaner] 只能注册 BaseCleaner 的实例');
+      cleanerLog.warn('[HtmlCleaner] 只能注册 BaseCleaner 的实例');
     }
   }
 
@@ -790,11 +790,8 @@ class HtmlCleaner {
           if (stat.removedScripts) {
             allStats.removedScripts = (allStats.removedScripts || 0) + stat.removedScripts;
           }
-          if (stat.removedByAttribute) {
-            allStats.removedByAttribute = (allStats.removedByAttribute || 0) + stat.removedByAttribute;
-          }
         } catch (e) {
-          console.warn(`[HtmlCleaner] 清理器 ${cleaner.name} 执行失败:`, e);
+          cleanerLog.warn(`[HtmlCleaner] 清理器 ${cleaner.name} 执行失败:`, e);
         }
       }
     }
@@ -809,7 +806,7 @@ class HtmlCleaner {
 
     // 日志
     if (allStats.savedSize > 0) {
-      console.log('[HTML清理] 原始:', formatSize(originalSize), 
+      cleanerLog.info('[HTML清理] 原始:', formatSize(originalSize), 
                   '清理后:', formatSize(cleanedSize),
                   '节省:', formatSize(allStats.savedSize), `(${allStats.savedPercent}%)`);
     }
@@ -856,13 +853,13 @@ async function loadCleanerConfig() {
             rules: profile.rules || []
           }
         };
-        console.log('[HTML清理] 已加载配置:', currentProfileId);
+        cleanerLog.info('[HTML清理] 已加载配置:', currentProfileId);
       } else {
         HTML_CLEANER_CONFIG = JSON.parse(JSON.stringify(DEFAULT_HTML_CLEANER_CONFIG));
       }
     }
   } catch (error) {
-    console.warn('[HTML清理] 加载配置失败:', error);
+    cleanerLog.warn('[HTML清理] 加载配置失败:', error);
     HTML_CLEANER_CONFIG = JSON.parse(JSON.stringify(DEFAULT_HTML_CLEANER_CONFIG));
   }
   
@@ -935,6 +932,8 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     HtmlCleaner,
     BaseCleaner,
+    RuleBasedCleaner,
+    // 向后兼容别名
     ElementBlockerCleaner,
     AttributeBasedBlocker,
     TrackingLinkCleaner,

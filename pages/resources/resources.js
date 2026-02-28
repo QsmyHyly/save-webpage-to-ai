@@ -35,7 +35,7 @@ async function applyTheme() {
     root.style.setProperty('--gradient-start', colors.gradientStart);
     root.style.setProperty('--gradient-end', colors.gradientEnd);
   } catch (e) {
-    console.error('应用主题失败:', e);
+    logger.error('应用主题失败:', e);
   }
 }
 
@@ -46,6 +46,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   bindEvents();
 });
 
+// 加载当前资源（使用新的文件系统 API）
 async function loadCurrentResources() {
   const container = document.getElementById('resourcesList');
   container.innerHTML = '';
@@ -55,22 +56,43 @@ async function loadCurrentResources() {
     currentResourcesData = result.currentResources;
     
     if (currentResourcesData && currentResourcesData.resources) {
+      // 临时资源（未保存）
       currentResources = currentResourcesData.resources;
       renderResources();
     } else {
-        const allResources = await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.GET_ALL_RESOURCES });
-        if (allResources && allResources.length > 0) {
-          currentResources = allResources;
-          renderAllResources();
+      // 从文件系统获取已保存的资源
+      const allFiles = await chrome.runtime.sendMessage({ 
+        type: MESSAGE_TYPES.GET_ALL_FILES 
+      });
+      
+      if (allFiles && allFiles.length > 0) {
+        // 过滤出非 HTML 文件并转换为兼容格式
+        currentResources = allFiles
+          .filter(f => f.type !== 'html')
+          .map(f => ({
+            id: f.id,
+            url: f.source?.url || '',
+            type: f.type,
+            size: f.size,
+            content: f.content,
+            metadata: {
+              filename: f.name,
+              sourcePageUrl: f.source?.url,
+              sourcePageTitle: f.source?.title,
+              savedAt: f.createdAt,
+              ...f.metadata
+            }
+          }));
+        renderAllResources();
       } else {
         currentResources = [];
         showResourceEmptyState('resourcesList', '没有可显示的资源');
       }
     }
   } catch (error) {
-    console.error('加载当前资源失败:', error);
+    logger.error('加载当前资源失败:', error);
     showResourceEmptyState('resourcesList', '加载失败: ' + error.message);
-  };
+  }
 }
 
 function renderAllResources() {
@@ -251,6 +273,7 @@ function blobToBase64(blob) {
   });
 }
 
+// 保存选中的资源（使用新的文件系统 API）
 async function saveSelectedResources() {
   if (!currentResourcesData) {
     alert('无法获取页面信息，请重新打开资源管理器');
@@ -272,7 +295,7 @@ async function saveSelectedResources() {
   overlay.classList.add('active');
   
   try {
-    const resourcesToSave = [];
+    const fileEntities = [];
     const sourcePageUrl = currentResourcesData.url;
     const sourcePageTitle = currentResourcesData.title;
     const savedAt = Date.now();
@@ -285,54 +308,65 @@ async function saveSelectedResources() {
       
       try {
         const content = await fetchResource(resource.url);
-        resourcesToSave.push({
-          ...resource,
+        
+        // 创建 FileEntity（包含完整字段）
+        const fileEntity = {
+          id: resource.id, // 保留原有ID
+          name: resource.metadata.filename,
           content: content,
-          size: content.length,
+          type: resource.type,
+          source: { url: resource.url },
+          createdAt: savedAt, // 添加创建时间
           metadata: {
-            ...resource.metadata,
             sourcePageUrl,
             sourcePageTitle,
-            savedAt
+            savedAt,
+            duration: resource.duration,
+            originalSize: resource.size
           }
-        });
+        };
+        
+        fileEntities.push(fileEntity);
       } catch (error) {
-        console.error('下载资源失败:', resource.url, error);
+        logger.error('下载资源失败:', resource.url, error);
         alert(`下载失败: ${resource.url}`);
       }
     }
     
-    if (resourcesToSave.length > 0) {
+    if (fileEntities.length > 0) {
+      // 使用新消息批量保存
       await chrome.runtime.sendMessage({
-        type: MESSAGE_TYPES.SAVE_RESOURCES,
-        resources: resourcesToSave
+        type: MESSAGE_TYPES.SAVE_FILES,
+        fileEntities
       });
       
-      alert(`✅ 成功保存 ${resourcesToSave.length} 个资源`);
+      alert(`✅ 成功保存 ${fileEntities.length} 个资源`);
       
       await loadCurrentResources();
     }
   } catch (error) {
-    console.error('保存资源失败:', error);
+    logger.error('保存资源失败:', error);
     alert('保存失败: ' + error.message);
   } finally {
     overlay.classList.remove('active');
   }
 }
 
+// 删除资源（使用新的文件系统 API）
 async function deleteResource(savedId) {
   if (!confirm('确定要删除这个资源吗？')) {
     return;
   }
   
   try {
+    // 使用新消息删除
     await chrome.runtime.sendMessage({
-      type: MESSAGE_TYPES.DELETE_RESOURCE,
+      type: MESSAGE_TYPES.DELETE_FILE,
       id: savedId
     });
     await loadCurrentResources();
   } catch (error) {
-    console.error('删除资源失败:', error);
+    logger.error('删除资源失败:', error);
     alert('删除失败: ' + error.message);
   }
 }

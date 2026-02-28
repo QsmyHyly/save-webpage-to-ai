@@ -38,7 +38,7 @@
   - 支持按原始页面分组查看已保存的资源
 - 🎨 **主题配置**：支持自定义界面主色调、危险色、成功色、渐变色等
 - 📊 **日志系统**：统一的日志模块，方便调试
-- 🗄️ **数据库管理**：使用 DBManager 类封装 IndexedDB 操作
+- 🗄️ **文件系统管理**：使用 FileManager 类封装 IndexedDB 操作，统一管理页面和资源
 
 ## 文件结构
 
@@ -52,17 +52,28 @@
 │   └── icon128.png
 ├── src/                       # 源代码目录
 │   ├── background/            # 后台脚本
-│   │   ├── background.js      # Service Worker，管理 IndexedDB 存储
-│   │   └── db-manager.js      # IndexedDB 数据库管理类
+│   │   └── background.js      # Service Worker，管理文件系统存储
 │   ├── content/               # 内容脚本
 │   │   ├── content-utils.js   # 内容脚本共享模块
 │   │   ├── deepseek-content.js # DeepSeek 页面内容脚本（处理上传）
 │   │   └── qianwen-uploader.js # 通义千问页面内容脚本（处理上传）
+│   ├── file-system/           # 文件系统模块（v3.0 新增）
+│   │   ├── file-entity.js     # 文件实体类
+│   │   ├── file-manager.js    # 文件管理器（统一接口）
+│   │   ├── file-storage.js    # 文件存储管理器
+│   │   ├── file-types.js      # 文件类型系统
+│   │   └── README.md          # 文件系统文档
+│   ├── rules/                 # 规则引擎模块
+│   │   ├── rule-types.js      # 规则类型定义
+│   │   ├── rule-matcher.js    # 规则匹配器
+│   │   ├── rule-engine.js     # 规则引擎
+│   │   └── README.md          # 规则引擎文档
 │   └── utils/                 # 工具模块
 │       ├── common-utils.js    # 公共工具函数
 │       ├── constants.js       # 常量定义模块
 │       ├── html-cleaner.js    # HTML 内容清理模块
-│       └── logger.js          # 统一日志模块
+│       ├── logger.js          # 统一日志模块
+│       └── shared-utils.js    # 共享工具函数
 ├── pages/                     # 页面目录
 │   ├── common.css             # 公共样式
 │   ├── popup/                 # 弹窗页面
@@ -191,11 +202,17 @@
 
 - **Manifest V3**：使用 Chrome 扩展的最新规范
 - **IndexedDB**：在 background service worker 中存储页面数据
+- **文件系统架构（v3.0）**：
+  - `FileEntity`：统一的文件实体类，将页面和资源抽象为文件
+  - `FileStorage`：IndexedDB 存储管理器
+  - `FileManager`：统一文件管理接口，整合页面和资源管理
+  - 支持自动从旧数据库迁移数据
 - **Content Scripts**：分别注入到 DeepSeek 和通义千问页面，负责文件上传和发送
 - **chrome.scripting**：动态执行脚本获取当前页面 HTML
 - **DragEvent**：模拟拖拽事件实现文件上传
 - **chrome.storage.sync**：配置组数据和主题设置自动同步到用户 Google 账号，跨设备可用
 - **配置组管理**：支持多配置组创建、切换、复制、重命名、删除
+- **规则引擎**：支持 CSS 选择器规则和属性值筛选规则
 - **管道式清理器架构**：
   - `HtmlCleaner` 核心类管理清理流程
   - 每种清理功能封装为独立的 `Cleaner` 类
@@ -205,17 +222,26 @@
 - **日志系统**：统一日志模块，支持不同环境的日志输出
 - **模块化架构**：
   - `src/background/`：后台脚本目录
-    - `background.js`：Service Worker 主入口
-    - `db-manager.js`：封装所有 IndexedDB 操作
+    - `background.js`：Service Worker 主入口，统一管理文件系统
   - `src/content/`：内容脚本目录
     - `content-utils.js`：内容脚本共享函数
     - `deepseek-content.js`：DeepSeek 平台适配
     - `qianwen-uploader.js`：通义千问平台适配
+  - `src/file-system/`：文件系统目录（v3.0）
+    - `file-entity.js`：文件实体类
+    - `file-manager.js`：文件管理器
+    - `file-storage.js`：存储管理器
+    - `file-types.js`：文件类型系统
+  - `src/rules/`：规则引擎目录
+    - `rule-types.js`：规则类型定义
+    - `rule-matcher.js`：规则匹配器
+    - `rule-engine.js`：规则引擎
   - `src/utils/`：工具模块目录
     - `common-utils.js`：公共工具函数
     - `constants.js`：统一管理所有常量
     - `html-cleaner.js`：管道式 HTML 内容清理模块
     - `logger.js`：统一日志模块
+    - `shared-utils.js`：共享工具函数
   - `pages/popup/`：弹窗页面目录
   - `pages/options/`：设置页面目录
   - `pages/resources/`：资源管理页面目录

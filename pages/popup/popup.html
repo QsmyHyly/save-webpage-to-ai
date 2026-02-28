@@ -13,6 +13,10 @@
     </div>
     <div class="header-actions">
       <button id="saveCurrentBtn" class="btn btn-primary">💾 保存当前页面</button>
+      <button id="saveHtmlBtn" class="btn btn-secondary">📄 只获取HTML</button>
+      <button id="saveJsBtn" class="btn btn-secondary">📜 只获取JS</button>
+      <button id="saveCssBtn" class="btn btn-secondary">🎨 只获取CSS</button>
+      <button id="saveAllResourcesBtn" class="btn btn-secondary">📦 获取所有资源</button>
       <button id="manageResourcesBtn" class="btn btn-secondary">📦 管理外部资源</button>
       <button id="selectAllBtn" class="btn btn-secondary">全选</button>
       <button id="deselectAllBtn" class="btn btn-secondary">取消全选</button>
@@ -64,9 +68,13 @@
     </div>
   </div>
 
+  <script src="../../src/utils/shared-utils.js"></script>
   <script src="../../src/utils/logger.js"></script>
   <script src="../../src/utils/constants.js"></script>
   <script src="../../src/utils/common-utils.js"></script>
+  <script src="../../src/rules/rule-types.js"></script>
+  <script src="../../src/rules/rule-matcher.js"></script>
+  <script src="../../src/rules/rule-engine.js"></script>
   <script src="../../src/utils/html-cleaner.js"></script>
   <script src="popup.js"></script>
 </body>

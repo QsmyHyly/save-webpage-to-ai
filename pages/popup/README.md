@@ -11,10 +11,22 @@
 - **主题应用**：从存储读取主题颜色并应用到弹窗 UI。
 
 ## 数据流
-- **获取数据**：通过 `chrome.runtime.sendMessage` 与 background 通信，请求 `GET_ALL_PAGES`、`GET_ALL_RESOURCES` 等。
-- **保存页面**：`saveCurrentPage()` → 注入脚本获取 HTML → `cleanHtmlContent()` 清理 → 发送 `SAVE_PAGE` 消息。
+- **获取数据**：通过 `chrome.runtime.sendMessage` 与 background 通信，使用新的文件系统 API：`GET_ALL_FILES`，然后按类型过滤出页面（html）和资源。
+- **保存页面**：`saveCurrentPage()` → 注入脚本获取 HTML → `cleanHtmlContent()` 清理 → 创建 `FileEntity` → 发送 `SAVE_FILE` 消息。
+- **保存资源**：创建 `FileEntity` 数组 → 发送 `SAVE_FILES` 消息批量保存。
+- **删除**：发送 `DELETE_FILE`（单个）或 `DELETE_FILES`（批量）消息。
 - **上传**：`uploadSelected()` → 检查 content script 就绪 → 发送 `UPLOAD_ITEMS` 消息。
 - **资源管理**：点击「管理外部资源」按钮时，注入脚本收集当前页面资源，存入 `chrome.storage.local` 后打开 `resources.html`。
+
+## 文件系统 API 迁移（v3.0）
+- **旧 API（已废弃）**：`GET_ALL_PAGES`、`GET_ALL_RESOURCES`、`SAVE_PAGE`、`SAVE_RESOURCES`、`DELETE_PAGE`、`DELETE_RESOURCE`
+- **新 API（推荐）**：
+  - `GET_ALL_FILES`：获取所有文件，按类型过滤
+  - `SAVE_FILE` / `SAVE_FILES`：保存文件（单个/批量）
+  - `DELETE_FILE` / `DELETE_FILES`：删除文件（单个/批量）
+  - `GET_FILES_BY_TYPE`：按类型获取文件
+  - `GET_FILE`：获取单个文件详情
+- **向后兼容**：background 仍保留对旧 API 的兼容，但内部已统一使用文件系统
 
 ## 依赖
 - `chrome.tabs`、`chrome.scripting`、`chrome.runtime`、`chrome.storage`

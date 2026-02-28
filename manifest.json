@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "保存网页并发送给deepseek或千问",
-  "version": "2.2",
+  "version": "3.0",
   "description": "保存任意网页HTML并在DeepSeek、通义千问等AI平台批量上传分析",
   "permissions": [
     "activeTab",

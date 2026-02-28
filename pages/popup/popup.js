@@ -32,7 +32,7 @@ async function applyTheme() {
     root.style.setProperty('--gradient-start', colors.gradientStart);
     root.style.setProperty('--gradient-end', colors.gradientEnd);
   } catch (e) {
-    console.error('应用主题失败:', e);
+    logger.error('应用主题失败:', e);
   }
 }
 
@@ -96,56 +96,110 @@ function updateStatusUI() {
   }
 }
 
-// 加载页面列表
+// 加载页面列表（使用新的文件系统 API）
 async function loadPages(retry = true) {
   try {
-    const result = await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.GET_ALL_PAGES });
-    if (result && result.status === 'error') {
-      throw new Error(result.message || '获取页面列表失败');
+    // 首先尝试使用新的 API 获取所有文件
+    const allFiles = await chrome.runtime.sendMessage({ 
+      type: MESSAGE_TYPES.GET_ALL_FILES 
+    });
+    
+    if (allFiles && allFiles.status === 'error') {
+      throw new Error(allFiles.message || '获取页面列表失败');
     }
-    if (!Array.isArray(result)) {
-      logger.error('获取页面列表返回非数组:', result);
+    
+    if (!Array.isArray(allFiles)) {
+      logger.error('获取文件列表返回非数组:', allFiles);
       throw new Error('返回数据格式错误');
     }
-    allPages = result;
+    
+    // 过滤出 HTML 类型的文件作为页面
+    allPages = allFiles
+      .filter(f => f.type === 'html')
+      .map(f => ({
+        id: f.id,
+        title: f.source?.title || f.metadata?.title || 'Untitled',
+        url: f.source?.url || f.metadata?.url || '',
+        savedAt: f.createdAt,
+        size: f.size,
+        html: f.content
+      }));
+    
     renderPages();
   } catch (error) {
     logger.error('加载页面列表失败:', error);
+    // 降级到旧方法（如果新方法失败）
     if (retry) {
-      logger.info('尝试重置数据库连接并重试...');
       try {
-        await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.RESET_DB });
-        return loadPages(false);
-      } catch (resetError) {
-        logger.error('重置数据库失败:', resetError);
+        logger.info('尝试使用兼容 API 获取页面...');
+        const result = await chrome.runtime.sendMessage({ 
+          type: MESSAGE_TYPES.GET_ALL_PAGES  // 兼容旧消息
+        });
+        if (Array.isArray(result)) {
+          allPages = result;
+          renderPages();
+          return;
+        }
+      } catch (e) {
+        logger.error('兼容 API 也失败:', e);
       }
     }
     window.showEmptyState('pageList', '加载失败，请刷新重试');
   }
 }
 
-// 加载资源列表
+// 加载资源列表（使用新的文件系统 API）
 async function loadResources(retry = true) {
   try {
-    const result = await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.GET_ALL_RESOURCES });
-    if (result && result.status === 'error') {
-      throw new Error(result.message || '获取资源列表失败');
+    // 获取所有非 HTML 类型的文件作为资源
+    const allFiles = await chrome.runtime.sendMessage({ 
+      type: MESSAGE_TYPES.GET_ALL_FILES 
+    });
+    
+    if (allFiles && allFiles.status === 'error') {
+      throw new Error(allFiles.message || '获取资源列表失败');
     }
-    if (!Array.isArray(result)) {
-      logger.error('获取资源列表返回非数组:', result);
+    
+    if (!Array.isArray(allFiles)) {
+      logger.error('获取文件列表返回非数组:', allFiles);
       throw new Error('返回数据格式错误');
     }
-    allResources = result;
+    
+    // 过滤出非 HTML 类型的文件作为资源
+    allResources = allFiles
+      .filter(f => f.type !== 'html')
+      .map(f => ({
+        id: f.id,
+        url: f.source?.url || '',
+        type: f.type,
+        size: f.size,
+        content: f.content,
+        metadata: {
+          filename: f.name,
+          sourcePageUrl: f.source?.url,
+          sourcePageTitle: f.source?.title,
+          savedAt: f.createdAt,
+          ...f.metadata
+        }
+      }));
+    
     renderResources();
   } catch (error) {
     logger.error('加载资源列表失败:', error);
+    // 降级到旧方法
     if (retry) {
-      logger.info('尝试重置数据库连接并重试...');
       try {
-        await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.RESET_DB });
-        return loadResources(false);
-      } catch (resetError) {
-        logger.error('重置数据库失败:', resetError);
+        logger.info('尝试使用兼容 API 获取资源...');
+        const result = await chrome.runtime.sendMessage({ 
+          type: MESSAGE_TYPES.GET_ALL_RESOURCES 
+        });
+        if (Array.isArray(result)) {
+          allResources = result;
+          renderResources();
+          return;
+        }
+      } catch (e) {
+        logger.error('兼容 API 也失败:', e);
       }
     }
     window.showResourceEmptyState('resourceList', '加载失败，请刷新重试');
@@ -359,14 +413,18 @@ async function downloadSelected() {
   }
 }
 
-// 删除单个页面
+// 删除单个页面（使用新的文件系统 API）
 async function deletePage(id) {
   if (!confirm('确定要删除这个页面吗？')) {
     return;
   }
   
   try {
-    await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.DELETE_PAGE, id });
+    // 使用新消息删除
+    await chrome.runtime.sendMessage({ 
+      type: MESSAGE_TYPES.DELETE_FILE, 
+      id 
+    });
     await loadPages();
   } catch (error) {
     logger.error('删除页面失败:', error);
@@ -374,14 +432,18 @@ async function deletePage(id) {
   }
 }
 
-// 删除单个资源
+// 删除单个资源（使用新的文件系统 API）
 async function deleteResource(id) {
   if (!confirm('确定要删除这个资源吗？')) {
     return;
   }
   
   try {
-    await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.DELETE_RESOURCE, id });
+    // 使用新消息删除
+    await chrome.runtime.sendMessage({ 
+      type: MESSAGE_TYPES.DELETE_FILE, 
+      id 
+    });
     await loadResources();
   } catch (error) {
     logger.error('删除资源失败:', error);
@@ -389,7 +451,7 @@ async function deleteResource(id) {
   }
 }
 
-// 删除选中的页面
+// 删除选中的页面（使用新的文件系统 API）
 async function deleteSelected() {
   const ids = getSelectedIds();
   if (ids.length === 0) {
@@ -397,17 +459,31 @@ async function deleteSelected() {
     return;
   }
 
-  if (!confirm(`确定要删除选中的 ${ids.length} 个页面吗？`)) {
+  if (!confirm(`确定要删除选中的 ${ids.length} 个项目吗？`)) {
     return;
   }
 
-  for (const id of ids) {
-    await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.DELETE_PAGE, id });
+  // 获取选中的资源ID
+  const resourceCheckboxes = document.querySelectorAll('.resource-checkbox:checked');
+  const resourceIds = Array.from(resourceCheckboxes).map(cb => cb.dataset.id);
+  
+  // 合并所有要删除的ID
+  const allIds = [...ids, ...resourceIds];
+
+  try {
+    // 使用新消息批量删除
+    await chrome.runtime.sendMessage({ 
+      type: MESSAGE_TYPES.DELETE_FILES, 
+      ids: allIds 
+    });
+    await Promise.all([loadPages(), loadResources()]);
+  } catch (error) {
+    logger.error('批量删除失败:', error);
+    alert('删除失败，请重试');
   }
-  await loadPages();
 }
 
-// 保存当前页面
+// 保存当前页面（使用新的文件系统 API）
 async function saveCurrentPage() {
   const btn = document.getElementById('saveCurrentBtn');
   btn.disabled = true;
@@ -445,9 +521,27 @@ async function saveCurrentPage() {
       });
     }
     
+    // 创建 FileEntity（包含完整字段）
+    const savedAt = Date.now();
+    const fileEntity = {
+      name: `${title.replace(/[\\/:*?"<>|]/g, '_')}.html`,
+      content: cleanedHtml,
+      type: 'html',
+      source: { url, title },
+      createdAt: savedAt, // 添加创建时间
+      metadata: {
+        cleaned: true,
+        originalSize: html.length,
+        cleanedSize: cleanedHtml.length,
+        savedPercent: stats?.savedPercent,
+        savedAt
+      }
+    };
+    
+    // 使用新消息保存
     await chrome.runtime.sendMessage({
-      type: MESSAGE_TYPES.SAVE_PAGE,
-      data: { html: cleanedHtml, title, url, size: cleanedHtml.length }
+      type: MESSAGE_TYPES.SAVE_FILE,
+      fileEntity
     });
     
     await loadPages();
@@ -471,6 +565,214 @@ async function saveCurrentPage() {
       btn.textContent = '💾 保存当前页面';
     }, 1500);
   }
+}
+
+// 只获取HTML（不进行清理）
+async function saveRawHtml() {
+  const btn = document.getElementById('saveHtmlBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 保存中...';
+  
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => {
+        return {
+          html: document.documentElement.outerHTML,
+          title: document.title,
+          url: location.href
+        };
+      }
+    });
+    
+    const { html, title, url } = results[0].result;
+    
+    // 不进行清理，直接保存原始HTML
+    // 创建 FileEntity（包含完整字段）
+    const savedAt = Date.now();
+    const fileEntity = {
+      name: `${title.replace(/[\\/:*?"<>|]/g, '_')}.html`,
+      content: html,
+      type: 'html',
+      source: { url, title },
+      createdAt: savedAt, // 添加创建时间
+      metadata: {
+        cleaned: false,
+        originalSize: html.length,
+        savedAt
+      }
+    };
+    
+    // 使用新消息保存
+    await chrome.runtime.sendMessage({
+      type: MESSAGE_TYPES.SAVE_FILE,
+      fileEntity
+    });
+    
+    await loadPages();
+    btn.textContent = '✅ 保存成功';
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = '📄 只获取HTML';
+    }, 1500);
+  } catch (error) {
+    logger.error('保存HTML失败:', error);
+    btn.textContent = '❌ 保存失败';
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = '📄 只获取HTML';
+    }, 1500);
+  }
+}
+
+// 根据类型保存资源（使用新的文件系统 API）
+async function saveResourcesByType(type) {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab) return;
+
+  const results = await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    func: () => {
+      const resources = [];
+      const seen = new Set();
+      
+      performance.getEntriesByType('resource').forEach(entry => {
+        if (seen.has(entry.name)) return;
+        seen.add(entry.name);
+        
+        let resType = 'other';
+        const url = entry.name.toLowerCase();
+        if (url.endsWith('.css') || url.includes('.css?')) resType = 'css';
+        else if (url.endsWith('.js') || url.includes('.js?')) resType = 'js';
+        else if (url.match(/\.(png|jpg|jpeg|gif|svg|webp|ico)/)) resType = 'image';
+        else if (url.match(/\.(woff|woff2|ttf|eot)/)) resType = 'font';
+        
+        resources.push({
+          id: `res-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          url: entry.name,
+          type: resType,
+          size: entry.transferSize || entry.encodedBodySize || 0,
+          duration: entry.duration,
+          metadata: {
+            filename: entry.name.split('/').pop().split('?')[0] || 'unknown'
+          }
+        });
+      });
+      
+      return {
+        resources: resources,
+        pageInfo: {
+          url: location.href,
+          title: document.title
+        }
+      };
+    }
+  });
+
+  const { resources, pageInfo } = results[0].result;
+  
+  let filteredResources = resources;
+  if (type !== 'all') {
+    filteredResources = resources.filter(r => r.type === type);
+  }
+  
+  if (filteredResources.length === 0) {
+    alert(`没有找到任何 ${type === 'all' ? '外部' : type.toUpperCase()} 资源`);
+    return;
+  }
+
+  const overlay = document.getElementById('progressOverlay');
+  const progressFill = document.getElementById('progressFill');
+  const progressText = document.getElementById('progressText');
+  overlay.classList.add('active');
+
+  try {
+    const fileEntities = [];
+    const sourcePageUrl = pageInfo.url;
+    const sourcePageTitle = pageInfo.title;
+    const savedAt = Date.now();
+
+    for (let i = 0; i < filteredResources.length; i++) {
+      const resource = filteredResources[i];
+      
+      progressText.textContent = `正在下载: ${resource.metadata.filename} (${i + 1}/${filteredResources.length})`;
+      progressFill.style.width = `${((i + 1) / filteredResources.length) * 100}%`;
+      
+      try {
+        const content = await fetchResourceContent(resource.url);
+        
+        // 创建 FileEntity（包含完整字段）
+        const fileEntity = {
+          id: resource.id, // 保留原有ID
+          name: resource.metadata.filename,
+          content: content,
+          type: resource.type,
+          source: { url: resource.url },
+          createdAt: savedAt, // 添加创建时间
+          metadata: {
+            sourcePageUrl,
+            sourcePageTitle,
+            savedAt,
+            duration: resource.duration,
+            originalSize: resource.size
+          }
+        };
+        
+        fileEntities.push(fileEntity);
+      } catch (error) {
+        logger.error('下载资源失败:', resource.url, error);
+      }
+    }
+
+    if (fileEntities.length > 0) {
+      // 使用新消息批量保存
+      await chrome.runtime.sendMessage({
+        type: MESSAGE_TYPES.SAVE_FILES,
+        fileEntities
+      });
+      
+      await loadResources();
+      alert(`✅ 成功保存 ${fileEntities.length} 个 ${type === 'all' ? '资源' : type.toUpperCase()} 文件`);
+    } else {
+      alert('没有资源被成功保存');
+    }
+  } catch (error) {
+    logger.error('保存资源失败:', error);
+    alert('保存失败: ' + error.message);
+  } finally {
+    overlay.classList.remove('active');
+  }
+}
+
+// 获取资源内容
+async function fetchResourceContent(url) {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    
+    const contentType = response.headers.get('content-type') || '';
+    
+    if (contentType.startsWith('image/')) {
+      const blob = await response.blob();
+      return await blobToBase64(blob);
+    }
+    
+    return await response.text();
+  } catch (error) {
+    throw error;
+  }
+}
+
+// Blob转Base64
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 // 上传选中的页面到当前 AI 平台
@@ -631,6 +933,10 @@ async function openResourcesManager() {
 // 绑定所有事件
 function bindEvents() {
   document.getElementById('saveCurrentBtn')?.addEventListener('click', saveCurrentPage);
+  document.getElementById('saveHtmlBtn')?.addEventListener('click', saveRawHtml);
+  document.getElementById('saveJsBtn')?.addEventListener('click', () => saveResourcesByType('js'));
+  document.getElementById('saveCssBtn')?.addEventListener('click', () => saveResourcesByType('css'));
+  document.getElementById('saveAllResourcesBtn')?.addEventListener('click', () => saveResourcesByType('all'));
   document.getElementById('manageResourcesBtn')?.addEventListener('click', openResourcesManager);
   document.getElementById('selectAllBtn')?.addEventListener('click', selectAll);
   document.getElementById('deselectAllBtn')?.addEventListener('click', deselectAll);
