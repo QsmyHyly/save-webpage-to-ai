@@ -120,45 +120,66 @@ async function saveJSFromPage() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      func: async () => {
-        const scripts = [];
+      func: () => {
+        const scriptTags = [];
         for (const script of document.scripts) {
-          if (script.src) {
-            try {
-              const res = await fetch(script.src);
-              const content = await res.text();
-              scripts.push({ content, src: script.src });
-            } catch (e) {
-              console.warn('获取外部脚本失败:', script.src);
-            }
-          } else if (script.textContent) {
-            scripts.push({ content: script.textContent, src: 'inline' });
-          }
+          scriptTags.push(script.outerHTML);
         }
-        return scripts;
+        return {
+          scriptTags,
+          title: document.title,
+          url: location.href
+        };
       }
     });
 
-    const scriptList = results[0].result;
-    if (!scriptList.length) {
+    const { scriptTags, title, url } = results[0].result;
+    if (!scriptTags.length) {
       alert('未找到任何脚本');
       btn.disabled = false;
       btn.textContent = '📜 只获取JS';
       return;
     }
 
-    const fileEntities = scriptList.map((item, index) => ({
-      name: `${tab.title?.replace(/[\\/:*?"<>|]/g, '_') || 'page'}_script_${index + 1}.js`,
-      content: item.content,
-      type: 'js',
-      source: { url: item.src !== 'inline' ? item.src : tab.url },
+    const safeTitle = (title || 'page').replace(/[\\/:*?"<>|]/g, '_');
+    const savedAt = new Date().toLocaleString('zh-CN');
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>${title} - 脚本标签集合</title>
+<!--
+  来源页面: ${url}
+  页面标题: ${title}
+  收集时间: ${savedAt}
+  标签数量: 脚本 ${scriptTags.length} 个
+-->
+</head>
+<body>
+<!-- 原始脚本标签集合 -->
+${scriptTags.join('\n')}
+</body>
+</html>`;
+
+    const fileEntity = {
+      name: `${safeTitle}_脚本标签.html`,
+      content: html,
+      type: 'html',
+      source: { url, title },
       createdAt: Date.now(),
-      metadata: { sourcePageUrl: tab.url, sourcePageTitle: tab.title }
-    }));
+      metadata: {
+        type: 'script-tags',
+        sourcePageUrl: url,
+        sourcePageTitle: title,
+        tagCount: scriptTags.length,
+        savedAt
+      }
+    };
 
     const response = await chrome.runtime.sendMessage({
-      type: MESSAGE_TYPES.SAVE_FILES,
-      fileEntities
+      type: MESSAGE_TYPES.SAVE_FILE,
+      fileEntity
     });
 
     if (response && response.status === 'error') {
@@ -190,51 +211,79 @@ async function saveCSSFromPage() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      func: async () => {
-        const styles = [];
+      func: () => {
+        const styleTags = [];
         
-        document.querySelectorAll('style').forEach((style, index) => {
-          if (style.textContent) {
-            styles.push({ content: style.textContent, src: `inline-${index}` });
-          }
+        // 收集内联样式标签
+        document.querySelectorAll('style').forEach(style => {
+          styleTags.push(style.outerHTML);
         });
         
-        for (const link of document.querySelectorAll('link[rel="stylesheet"]')) {
-          if (link.href) {
-            try {
-              const res = await fetch(link.href);
-              const content = await res.text();
-              styles.push({ content, src: link.href });
-            } catch (e) {
-              console.warn('获取外部样式失败:', link.href);
-            }
-          }
-        }
+        // 收集外部样式链接
+        document.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
+          styleTags.push(link.outerHTML);
+        });
         
-        return styles;
+        return {
+          styleTags,
+          title: document.title,
+          url: location.href
+        };
       }
     });
 
-    const styleList = results[0].result;
-    if (!styleList.length) {
+    const { styleTags, title, url } = results[0].result;
+    if (!styleTags.length) {
       alert('未找到任何样式');
       btn.disabled = false;
       btn.textContent = '🎨 只获取CSS';
       return;
     }
 
-    const fileEntities = styleList.map((item, index) => ({
-      name: `${tab.title?.replace(/[\\/:*?"<>|]/g, '_') || 'page'}_style_${index + 1}.css`,
-      content: item.content,
-      type: 'css',
-      source: { url: item.src.startsWith('inline') ? tab.url : item.src },
+    const safeTitle = (title || 'page').replace(/[\\/:*?"<>|]/g, '_');
+    const savedAt = new Date().toLocaleString('zh-CN');
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>${title} - 样式标签集合</title>
+<!--
+  来源页面: ${url}
+  页面标题: ${title}
+  收集时间: ${savedAt}
+  标签数量: 样式 ${styleTags.length} 个
+-->
+${styleTags.join('\n')}
+</head>
+<body>
+<!-- 样式测试区域 -->
+<div style="padding: 20px;">
+  <h1>样式标签集合</h1>
+  <p>此页面包含从 <strong>${title}</strong> 收集的所有样式标签。</p>
+  <p>来源: <a href="${url}" target="_blank">${url}</a></p>
+</div>
+</body>
+</html>`;
+
+    const fileEntity = {
+      name: `${safeTitle}_样式标签.html`,
+      content: html,
+      type: 'html',
+      source: { url, title },
       createdAt: Date.now(),
-      metadata: { sourcePageUrl: tab.url, sourcePageTitle: tab.title }
-    }));
+      metadata: {
+        type: 'style-tags',
+        sourcePageUrl: url,
+        sourcePageTitle: title,
+        tagCount: styleTags.length,
+        savedAt
+      }
+    };
 
     const response = await chrome.runtime.sendMessage({
-      type: MESSAGE_TYPES.SAVE_FILES,
-      fileEntities
+      type: MESSAGE_TYPES.SAVE_FILE,
+      fileEntity
     });
 
     if (response && response.status === 'error') {
