@@ -68,14 +68,21 @@
     </div>
   </div>
 
-  <script src="../../src/utils/shared-utils.js"></script>
+  <!-- 1. 基础工具 -->
   <script src="../../src/utils/logger.js"></script>
   <script src="../../src/utils/constants.js"></script>
+  <script src="../../src/utils/shared-utils.js"></script>
   <script src="../../src/utils/common-utils.js"></script>
+
+  <!-- 2. 规则引擎依赖 -->
   <script src="../../src/rules/rule-types.js"></script>
   <script src="../../src/rules/rule-matcher.js"></script>
   <script src="../../src/rules/rule-engine.js"></script>
+
+  <!-- 3. HTML清理器（依赖规则引擎） -->
   <script src="../../src/utils/html-cleaner.js"></script>
+
+  <!-- 4. 主逻辑 -->
   <script src="popup.js"></script>
 </body>
 </html>
