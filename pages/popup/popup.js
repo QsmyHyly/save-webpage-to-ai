@@ -483,7 +483,7 @@ async function deleteSelected() {
   }
 }
 
-// 保存当前页面（使用新的文件系统 API）
+// 保存当前页面（简化版，不再进行清理）
 async function saveCurrentPage() {
   const btn = document.getElementById('saveCurrentBtn');
   btn.disabled = true;
@@ -505,40 +505,19 @@ async function saveCurrentPage() {
     
     const { html, title, url } = results[0].result;
     
-    // 清理HTML内容（过滤追踪链接、大型样式块、配置脚本等）
-    // 传递页面 URL 作为 baseUrl，用于解析相对链接
-    const { html: cleanedHtml, stats } = await cleanHtmlContent(html, { loadConfig: true, baseUrl: url });
-    
-    // 记录清理统计
-    if (stats && stats.savedSize > 0) {
-      logger.info('HTML清理统计:', {
-        原始大小: formatSize(stats.originalSize),
-        清理后: formatSize(stats.cleanedSize),
-        节省: formatSize(stats.savedSize) + ' (' + stats.savedPercent + '%)',
-        移除追踪链接: stats.removedTracking,
-        移除样式块: stats.removedStyles,
-        移除脚本: stats.removedScripts
-      });
-    }
-    
-    // 创建 FileEntity（包含完整字段）
+    // 直接保存原始HTML，不再进行清理
     const savedAt = Date.now();
     const fileEntity = {
       name: `${title.replace(/[\\/:*?"<>|]/g, '_')}.html`,
-      content: cleanedHtml,
+      content: html,
       type: 'html',
       source: { url, title },
-      createdAt: savedAt, // 添加创建时间
+      createdAt: savedAt,
       metadata: {
-        cleaned: true,
-        originalSize: html.length,
-        cleanedSize: cleanedHtml.length,
-        savedPercent: stats?.savedPercent,
         savedAt
       }
     };
     
-    // 使用新消息保存
     await chrome.runtime.sendMessage({
       type: MESSAGE_TYPES.SAVE_FILE,
       fileEntity
@@ -546,13 +525,7 @@ async function saveCurrentPage() {
     
     await loadPages();
     
-    // 显示清理效果
-    if (stats && stats.savedPercent > 0) {
-      btn.textContent = `✅ 已清理 ${stats.savedPercent}%`;
-    } else {
-      btn.textContent = '✅ 保存成功';
-    }
-    
+    btn.textContent = '✅ 保存成功';
     setTimeout(() => {
       btn.disabled = false;
       btn.textContent = '💾 保存当前页面';
@@ -864,10 +837,7 @@ function deselectAll() {
   updateButtonStates();
 }
 
-// 打开设置页面
-function openSettings() {
-  chrome.runtime.openOptionsPage();
-}
+
 
 // 打开资源管理页面
 async function openResourcesManager() {
@@ -943,7 +913,6 @@ function bindEvents() {
   document.getElementById('downloadSelectedBtn')?.addEventListener('click', downloadSelected);
   document.getElementById('deleteSelectedBtn')?.addEventListener('click', deleteSelected);
   document.getElementById('uploadSelectedBtn')?.addEventListener('click', uploadSelected);
-  document.getElementById('settingsBtn')?.addEventListener('click', openSettings);
 }
 
 // 初始化

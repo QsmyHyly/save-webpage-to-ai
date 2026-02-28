@@ -58,7 +58,6 @@
       "matches": ["<all_urls>"]
     }
   ],
-  "options_page": "pages/options/options.html",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

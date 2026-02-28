@@ -5,9 +5,6 @@
 importScripts(
   '../utils/constants.js',
   '../utils/logger.js',
-  '../rules/rule-types.js',
-  '../rules/rule-matcher.js',
-  '../rules/rule-engine.js',
   '../file-system/file-types.js',
   '../file-system/file-entity.js',
   '../file-system/file-storage.js',
