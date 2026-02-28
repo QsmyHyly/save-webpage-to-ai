@@ -23,20 +23,6 @@ const PLATFORM = {
   }
 };
 
-// 默认屏蔽规则
-const DEFAULT_BLOCKING_RULES = {
-  idRules: [
-    { selector: '#doubao-ai-assistant', enabled: true },
-    { selector: '[aria-label="flow-ai-assistant"]', enabled: true },
-    { selector: '.mini-header__logo', enabled: true }
-  ],
-  classRules: [
-    { selector: '.ad-banner', enabled: true },
-    { selector: '[data-ad]', enabled: true },
-    { selector: '.popup-overlay', enabled: true }
-  ]
-};
-
 // 存储键名
 const STORAGE_KEYS = {
   PROFILES: 'profiles',
