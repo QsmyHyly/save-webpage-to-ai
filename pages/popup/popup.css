@@ -101,49 +101,66 @@ body {
   font-size: 11px;
 }
 
-/* ===== 页面列表 ===== */
-.page-list {
+/* ===== 文件列表 ===== */
+.file-list {
   background: var(--bg-white);
   border-radius: var(--radius-md);
   overflow: hidden;
   margin-bottom: 12px;
 }
 
-.page-item {
+.file-item {
   padding: 12px;
   border-bottom: 1px solid var(--border-light);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   transition: background var(--transition-fast);
   min-height: 48px;
 }
 
-.page-item:hover {
+.file-item:hover {
   background: var(--bg-hover);
 }
 
-.page-item.selected {
+.file-item.selected {
   background-color: var(--primary-light);
 }
 
-.page-item:last-child {
+.file-item:last-child {
   border-bottom: none;
 }
 
-.page-checkbox {
-  margin-top: 2px;
+.file-checkbox {
   cursor: pointer;
   transform: scale(1.5);
   margin-right: 12px;
 }
 
-.page-info {
+.file-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.file-icon.html { background: #e8eaf6; color: #3f51b5; }
+.file-icon.css { background: #e3f2fd; color: #1976d2; }
+.file-icon.js { background: #fff3e0; color: #f57c00; }
+.file-icon.image { background: #e8f5e9; color: #388e3c; }
+.file-icon.font { background: #f3e5f5; color: #7b1fa2; }
+.file-icon.other { background: #eceff1; color: #607d8b; }
+
+.file-info {
   flex: 1;
   min-width: 0;
 }
 
-.page-title {
+.file-name {
   font-size: 13px;
   font-weight: 500;
   color: var(--text-color);
@@ -153,94 +170,19 @@ body {
   text-overflow: ellipsis;
 }
 
-.page-url {
+.file-meta {
   font-size: 11px;
   color: var(--text-lighter);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.page-time {
-  font-size: 11px;
-  color: #aaa;
-  margin-top: 4px;
-}
-
-.page-actions {
+.file-actions {
   display: flex;
   gap: 6px;
 }
 
-.page-actions .btn {
+.file-actions .btn {
   padding: 4px 8px;
   font-size: 11px;
-}
-
-/* ===== 资源列表 ===== */
-.resource-list {
-  background: var(--bg-white);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  margin-bottom: 12px;
-}
-
-.resource-item {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border-light);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  transition: background var(--transition-fast);
-  min-height: 48px;
-}
-
-.resource-item:hover {
-  background: var(--bg-hover);
-}
-
-.resource-item.selected {
-  background-color: var(--primary-light);
-}
-
-.resource-item:last-child {
-  border-bottom: none;
-}
-
-.resource-checkbox {
-  cursor: pointer;
-  transform: scale(1.5);
-  margin-right: 12px;
-}
-
-.resource-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.resource-filename {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-color);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.resource-meta {
-  font-size: 10px;
-  color: var(--text-lighter);
-  margin-top: 2px;
-}
-
-.resource-actions {
-  display: flex;
-  gap: 4px;
-}
-
-.resource-actions .btn {
-  padding: 3px 6px;
-  font-size: 10px;
 }
 
 /* ===== 底部操作栏 ===== */

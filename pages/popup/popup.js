@@ -1,7 +1,6 @@
 // popup.js - 扩展弹窗逻辑
 
-let allPages = [];
-let allResources = [];
+let allFiles = [];
 let currentTab = null;
 let isTargetPage = false;
 let currentPlatform = null;
@@ -96,279 +95,159 @@ function updateStatusUI() {
   }
 }
 
-// 加载页面列表（使用新的文件系统 API）
-async function loadPages(retry = true) {
+// 加载文件列表
+async function loadFiles() {
   try {
-    // 首先尝试使用新的 API 获取所有文件
-    const allFiles = await chrome.runtime.sendMessage({ 
+    const allFilesData = await chrome.runtime.sendMessage({ 
       type: MESSAGE_TYPES.GET_ALL_FILES 
     });
-    
-    if (allFiles && allFiles.status === 'error') {
-      throw new Error(allFiles.message || '获取页面列表失败');
-    }
-    
-    if (!Array.isArray(allFiles)) {
-      logger.error('获取文件列表返回非数组:', allFiles);
-      throw new Error('返回数据格式错误');
-    }
-    
-    // 过滤出 HTML 类型的文件作为页面
-    allPages = allFiles
-      .filter(f => f.type === 'html')
-      .map(f => ({
-        id: f.id,
-        title: f.source?.title || f.metadata?.title || 'Untitled',
-        url: f.source?.url || f.metadata?.url || '',
-        savedAt: f.createdAt,
-        size: f.size,
-        html: f.content
-      }));
-    
-    renderPages();
+    if (!Array.isArray(allFilesData)) throw new Error('返回数据格式错误');
+
+    // 转换为统一的文件对象格式
+    allFiles = allFilesData.map(f => ({
+      id: f.id,
+      name: f.name || f.metadata?.filename || '未命名',
+      type: f.type,
+      size: f.size,
+      content: f.content,
+      createdAt: f.createdAt,
+      source: f.source || {},
+      metadata: f.metadata || {},
+      // 为 HTML 文件保留 title 和 url 方便上传
+      title: f.type === 'html' ? (f.source?.title || f.metadata?.title || '') : '',
+      url: f.type === 'html' ? (f.source?.url || f.metadata?.url || '') : '',
+      // 为资源保留原始 URL
+      resourceUrl: f.type !== 'html' ? (f.source?.url || '') : ''
+    }));
+
+    renderFiles();
   } catch (error) {
-    logger.error('加载页面列表失败:', error);
-    // 降级到旧方法（如果新方法失败）
-    if (retry) {
-      try {
-        logger.info('尝试使用兼容 API 获取页面...');
-        const result = await chrome.runtime.sendMessage({ 
-          type: MESSAGE_TYPES.GET_ALL_PAGES  // 兼容旧消息
-        });
-        if (Array.isArray(result)) {
-          allPages = result;
-          renderPages();
-          return;
-        }
-      } catch (e) {
-        logger.error('兼容 API 也失败:', e);
-      }
-    }
-    window.showEmptyState('pageList', '加载失败，请刷新重试');
+    logger.error('加载文件列表失败:', error);
+    showEmptyState('fileList', '加载失败，请刷新重试');
   }
 }
 
-// 加载资源列表（使用新的文件系统 API）
-async function loadResources(retry = true) {
-  try {
-    // 获取所有非 HTML 类型的文件作为资源
-    const allFiles = await chrome.runtime.sendMessage({ 
-      type: MESSAGE_TYPES.GET_ALL_FILES 
-    });
-    
-    if (allFiles && allFiles.status === 'error') {
-      throw new Error(allFiles.message || '获取资源列表失败');
-    }
-    
-    if (!Array.isArray(allFiles)) {
-      logger.error('获取文件列表返回非数组:', allFiles);
-      throw new Error('返回数据格式错误');
-    }
-    
-    // 过滤出非 HTML 类型的文件作为资源
-    allResources = allFiles
-      .filter(f => f.type !== 'html')
-      .map(f => ({
-        id: f.id,
-        url: f.source?.url || '',
-        type: f.type,
-        size: f.size,
-        content: f.content,
-        metadata: {
-          filename: f.name,
-          sourcePageUrl: f.source?.url,
-          sourcePageTitle: f.source?.title,
-          savedAt: f.createdAt,
-          ...f.metadata
-        }
-      }));
-    
-    renderResources();
-  } catch (error) {
-    logger.error('加载资源列表失败:', error);
-    // 降级到旧方法
-    if (retry) {
-      try {
-        logger.info('尝试使用兼容 API 获取资源...');
-        const result = await chrome.runtime.sendMessage({ 
-          type: MESSAGE_TYPES.GET_ALL_RESOURCES 
-        });
-        if (Array.isArray(result)) {
-          allResources = result;
-          renderResources();
-          return;
-        }
-      } catch (e) {
-        logger.error('兼容 API 也失败:', e);
-      }
-    }
-    window.showResourceEmptyState('resourceList', '加载失败，请刷新重试');
-  }
-}
+// 渲染文件列表
+function renderFiles() {
+  const container = document.getElementById('fileList');
+  const countEl = document.getElementById('fileCount');
+  
+  if (!container) return;
+  countEl.textContent = allFiles.length;
 
-// 渲染页面列表
-function renderPages() {
-  const container = document.getElementById('pageList');
-  const countEl = document.getElementById('pageCount');
-  
-  countEl.textContent = allPages.length;
-  
-  if (allPages.length === 0) {
-    window.showEmptyState('pageList', '暂无保存的页面');
+  if (allFiles.length === 0) {
+    showEmptyState('fileList', '暂无保存的文件');
     return;
   }
-  
-  container.innerHTML = allPages.map(page => `
-    <div class="page-item" data-id="${page.id}">
-      <input type="checkbox" class="page-checkbox" data-id="${page.id}">
-      <div class="page-info">
-        <div class="page-title" title="${escapeHtml(page.title)}">${escapeHtml(page.title)}</div>
-        <div class="page-url" title="${escapeHtml(page.url)}">${escapeHtml(page.url)}</div>
-        <div class="page-time">${new Date(page.savedAt).toLocaleString()} · ${formatSize(page.size)}</div>
+
+  container.innerHTML = allFiles.map(file => {
+    const icon = getResourceIcon(file.type);
+    const sizeText = formatSize(file.size);
+    const timeText = new Date(file.createdAt).toLocaleString();
+    const displayName = file.name || (file.type === 'html' ? file.title : '文件');
+
+    return `
+      <div class="file-item" data-id="${file.id}">
+        <input type="checkbox" class="file-checkbox" data-id="${file.id}">
+        <div class="file-icon ${file.type}">${icon}</div>
+        <div class="file-info">
+          <div class="file-name" title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</div>
+          <div class="file-meta">${timeText} · ${sizeText}</div>
+        </div>
+        <div class="file-actions">
+          <button class="btn btn-secondary download-btn" data-id="${file.id}">📥</button>
+          <button class="btn btn-danger delete-btn" data-id="${file.id}">🗑️</button>
+        </div>
       </div>
-      <div class="page-actions">
-        <button class="btn btn-secondary download-btn" data-id="${page.id}">📥</button>
-        <button class="btn btn-danger delete-btn" data-id="${page.id}">🗑️</button>
-      </div>
-    </div>
-  `).join('');
-  
+    `;
+  }).join('');
+
   // 绑定事件
-  container.querySelectorAll('.page-checkbox').forEach(cb => {
+  container.querySelectorAll('.file-checkbox').forEach(cb => {
     cb.addEventListener('change', (e) => {
-      const item = e.target.closest('.page-item');
+      const item = e.target.closest('.file-item');
       item.classList.toggle('selected', e.target.checked);
       updateButtonStates();
     });
   });
-  
-  container.querySelectorAll('.page-item').forEach(div => {
+
+  container.querySelectorAll('.file-item').forEach(div => {
     div.addEventListener('click', (e) => {
-      if (e.target.closest('.page-checkbox') || e.target.closest('.delete-btn') || e.target.closest('.download-btn')) {
+      if (e.target.closest('.file-checkbox') || e.target.closest('.delete-btn') || e.target.closest('.download-btn')) {
         return;
       }
-      const checkbox = div.querySelector('.page-checkbox');
+      const checkbox = div.querySelector('.file-checkbox');
       checkbox.checked = !checkbox.checked;
       div.classList.toggle('selected', checkbox.checked);
       updateButtonStates();
     });
   });
-  
+
   container.querySelectorAll('.download-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      downloadPage(btn.dataset.id);
+      downloadFile(btn.dataset.id);
     });
   });
-  
+
   container.querySelectorAll('.delete-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      deletePage(btn.dataset.id);
+      deleteFile(btn.dataset.id);
     });
   });
 }
 
-// 渲染资源列表
-function renderResources() {
-  const container = document.getElementById('resourceList');
-  const countEl = document.getElementById('resourceCount');
-  
-  countEl.textContent = allResources.length;
-  
-  if (allResources.length === 0) {
-    showResourceEmptyState('暂无保存的资源');
-    return;
-  }
-  
-  container.innerHTML = allResources.map(resource => `
-    <div class="resource-item" data-id="${resource.id}">
-      <input type="checkbox" class="resource-checkbox" data-id="${resource.id}">
-      <div class="resource-icon ${resource.type}">${getResourceIcon(resource.type)}</div>
-      <div class="resource-info">
-        <div class="resource-filename" title="${escapeHtml(resource.metadata?.filename || resource.url)}">${escapeHtml(resource.metadata?.filename || resource.url)}</div>
-        <div class="resource-meta">${formatSize(resource.size)}</div>
-      </div>
-      <div class="resource-actions">
-        <button class="btn btn-danger delete-resource-btn" data-id="${resource.id}">🗑️</button>
-      </div>
-    </div>
-  `).join('');
-  
-  // 绑定事件
-  container.querySelectorAll('.resource-checkbox').forEach(cb => {
-    cb.addEventListener('change', (e) => {
-      const item = e.target.closest('.resource-item');
-      item.classList.toggle('selected', e.target.checked);
-      updateButtonStates();
-    });
-  });
-  
-  container.querySelectorAll('.resource-item').forEach(div => {
-    div.addEventListener('click', (e) => {
-      if (e.target.closest('.resource-checkbox') || e.target.closest('.delete-resource-btn')) {
-        return;
-      }
-      const checkbox = div.querySelector('.resource-checkbox');
-      checkbox.checked = !checkbox.checked;
-      div.classList.toggle('selected', checkbox.checked);
-      updateButtonStates();
-    });
-  });
-  
-  container.querySelectorAll('.delete-resource-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      deleteResource(btn.dataset.id);
-    });
-  });
+// 获取选中的文件
+function getSelectedFiles() {
+  const checkboxes = document.querySelectorAll('.file-checkbox:checked');
+  const ids = Array.from(checkboxes).map(cb => cb.dataset.id);
+  return allFiles.filter(f => ids.includes(f.id));
 }
 
 // 更新按钮状态
 function updateButtonStates() {
-  const selectedPages = document.querySelectorAll('.page-checkbox:checked').length;
-  const selectedResources = document.querySelectorAll('.resource-checkbox:checked').length;
-  const total = selectedPages + selectedResources;
-  
-  document.getElementById('downloadSelectedBtn').disabled = total === 0;
-  document.getElementById('deleteSelectedBtn').disabled = total === 0;
+  const selected = document.querySelectorAll('.file-checkbox:checked').length;
+  document.getElementById('downloadSelectedBtn').disabled = selected === 0;
+  document.getElementById('deleteSelectedBtn').disabled = selected === 0;
 }
 
-// 获取选中的页面 ID
-function getSelectedIds() {
-  return Array.from(document.querySelectorAll('.page-checkbox:checked')).map(cb => cb.dataset.id);
-}
+// 下载单个文件
+async function downloadFile(id) {
+  const file = allFiles.find(f => f.id === id);
+  if (!file) throw new Error('文件不存在');
 
-// 获取选中的页面数据
-function getSelectedPages() {
-  const ids = getSelectedIds();
-  return allPages.filter(p => ids.includes(p.id));
-}
+  let blob;
+  let fileName = file.name;
 
-// 获取选中的资源数据
-function getSelectedResources() {
-  const checkboxes = document.querySelectorAll('.resource-checkbox:checked');
-  const ids = Array.from(checkboxes).map(cb => cb.dataset.id);
-  return allResources.filter(r => ids.includes(r.id));
-}
+  if (file.type === 'html') {
+    // HTML 文件添加元数据注释
+    const metadata = {
+      url: file.url,
+      title: file.title,
+      savedAt: new Date(file.createdAt).toISOString(),
+      originalSize: file.size
+    };
+    const wrappedHtml = wrapHtmlWithMetadata(file.content, metadata);
+    blob = new Blob([wrappedHtml], { type: 'text/html' });
+  } else {
+    // 其他类型直接使用内容（如果是 base64 图片需要转换）
+    if (typeof file.content === 'string' && file.content.startsWith('data:')) {
+      // 将 data URL 转为 Blob
+      const [meta, data] = file.content.split(',');
+      const byteString = atob(data);
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+      }
+      blob = new Blob([ab], { type: meta.split(':')[1].split(';')[0] });
+    } else {
+      blob = new Blob([file.content], { type: 'application/octet-stream' });
+    }
+  }
 
-// 下载单个页面
-async function downloadPage(id) {
-  const page = allPages.find(p => p.id === id);
-  if (!page) throw new Error('页面不存在');
-  
-  const metadata = {
-    url: page.url,
-    title: page.title,
-    savedAt: new Date(page.savedAt).toISOString(),
-    originalSize: page.size
-  };
-  
-  const wrappedHtml = wrapHtmlWithMetadata(page.html, metadata);
-  const blob = new Blob([wrappedHtml], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
-  const fileName = `${page.title.replace(/[\\/:*?"<>|]/g, '_')}.html`;
-  
   return new Promise((resolve, reject) => {
     chrome.downloads.download({
       url: url,
@@ -376,114 +255,64 @@ async function downloadPage(id) {
       saveAs: false
     }, (downloadId) => {
       URL.revokeObjectURL(url);
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
-      } else {
-        resolve(downloadId);
-      }
+      if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+      else resolve(downloadId);
     });
   });
 }
 
-// 下载选中的页面
+// 下载选中的文件
 async function downloadSelected() {
-  const selected = getSelectedPages();
+  const selected = getSelectedFiles();
   if (selected.length === 0) {
-    alert('请至少选择一个页面');
+    alert('请至少选择一个文件');
     return;
   }
-  
-  let successCount = 0;
-  let errorCount = 0;
-  
-  for (const page of selected) {
+  let success = 0, fail = 0;
+  for (const file of selected) {
     try {
-      await downloadPage(page.id);
-      successCount++;
+      await downloadFile(file.id);
+      success++;
     } catch (error) {
-      errorCount++;
-      logger.error('下载页面失败:', page.title, error);
+      fail++;
+      logger.error('下载文件失败:', file.name, error);
     }
   }
-  
-  if (errorCount > 0) {
-    alert(`下载完成：成功 ${successCount} 个，失败 ${errorCount} 个`);
-  } else {
-    alert(`成功下载 ${successCount} 个页面`);
-  }
+  alert(`下载完成：成功 ${success} 个，失败 ${fail} 个`);
 }
 
-// 删除单个页面（使用新的文件系统 API）
-async function deletePage(id) {
-  if (!confirm('确定要删除这个页面吗？')) {
-    return;
-  }
-  
+// 删除单个文件
+async function deleteFile(id) {
+  if (!confirm('确定要删除这个文件吗？')) return;
   try {
-    // 使用新消息删除
-    await chrome.runtime.sendMessage({ 
-      type: MESSAGE_TYPES.DELETE_FILE, 
-      id 
-    });
-    await loadPages();
+    await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.DELETE_FILE, id });
+    await loadFiles();
   } catch (error) {
-    logger.error('删除页面失败:', error);
+    logger.error('删除文件失败:', error);
     alert('删除失败，请重试');
   }
 }
 
-// 删除单个资源（使用新的文件系统 API）
-async function deleteResource(id) {
-  if (!confirm('确定要删除这个资源吗？')) {
-    return;
-  }
-  
-  try {
-    // 使用新消息删除
-    await chrome.runtime.sendMessage({ 
-      type: MESSAGE_TYPES.DELETE_FILE, 
-      id 
-    });
-    await loadResources();
-  } catch (error) {
-    logger.error('删除资源失败:', error);
-    alert('删除失败，请重试');
-  }
-}
-
-// 删除选中的页面（使用新的文件系统 API）
+// 删除选中的文件
 async function deleteSelected() {
-  const ids = getSelectedIds();
-  if (ids.length === 0) {
-    alert('请至少选择一个页面');
+  const selected = getSelectedFiles();
+  if (selected.length === 0) {
+    alert('请至少选择一个文件');
     return;
   }
+  if (!confirm(`确定要删除选中的 ${selected.length} 个文件吗？`)) return;
 
-  if (!confirm(`确定要删除选中的 ${ids.length} 个项目吗？`)) {
-    return;
-  }
-
-  // 获取选中的资源ID
-  const resourceCheckboxes = document.querySelectorAll('.resource-checkbox:checked');
-  const resourceIds = Array.from(resourceCheckboxes).map(cb => cb.dataset.id);
-  
-  // 合并所有要删除的ID
-  const allIds = [...ids, ...resourceIds];
-
+  const ids = selected.map(f => f.id);
   try {
-    // 使用新消息批量删除
-    await chrome.runtime.sendMessage({ 
-      type: MESSAGE_TYPES.DELETE_FILES, 
-      ids: allIds 
-    });
-    await Promise.all([loadPages(), loadResources()]);
+    await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.DELETE_FILES, ids });
+    await loadFiles();
   } catch (error) {
     logger.error('批量删除失败:', error);
     alert('删除失败，请重试');
   }
 }
 
-// 保存当前页面（简化版，不再进行清理）
+// 保存当前页面
 async function saveCurrentPage() {
   const btn = document.getElementById('saveCurrentBtn');
   btn.disabled = true;
@@ -505,7 +334,6 @@ async function saveCurrentPage() {
     
     const { html, title, url } = results[0].result;
     
-    // 直接保存原始HTML，不再进行清理
     const savedAt = Date.now();
     const fileEntity = {
       name: `${title.replace(/[\\/:*?"<>|]/g, '_')}.html`,
@@ -523,7 +351,7 @@ async function saveCurrentPage() {
       fileEntity
     });
     
-    await loadPages();
+    await loadFiles();
     
     btn.textContent = '✅ 保存成功';
     setTimeout(() => {
@@ -540,59 +368,52 @@ async function saveCurrentPage() {
   }
 }
 
-// 只获取HTML（不进行清理）
-async function saveRawHtml() {
+// 从页面获取去除脚本和样式的 HTML
+async function saveHTMLFromPage() {
   const btn = document.getElementById('saveHtmlBtn');
   btn.disabled = true;
-  btn.textContent = '⏳ 保存中...';
-  
+  btn.textContent = '⏳ 获取中...';
+
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: () => {
-        return {
-          html: document.documentElement.outerHTML,
-          title: document.title,
-          url: location.href
-        };
+        const clone = document.documentElement.cloneNode(true);
+        // 移除所有 script 标签
+        clone.querySelectorAll('script').forEach(el => el.remove());
+        // 移除所有 style 标签
+        clone.querySelectorAll('style').forEach(el => el.remove());
+        // 移除所有 link[rel="stylesheet"]
+        clone.querySelectorAll('link[rel="stylesheet"]').forEach(el => el.remove());
+        return clone.outerHTML;
       }
     });
-    
-    const { html, title, url } = results[0].result;
-    
-    // 不进行清理，直接保存原始HTML
-    // 创建 FileEntity（包含完整字段）
-    const savedAt = Date.now();
+
+    const cleanedHtml = results[0].result;
     const fileEntity = {
-      name: `${title.replace(/[\\/:*?"<>|]/g, '_')}.html`,
-      content: html,
+      name: `${tab.title?.replace(/[\\/:*?"<>|]/g, '_') || 'page'}_clean.html`,
+      content: cleanedHtml,
       type: 'html',
-      source: { url, title },
-      createdAt: savedAt, // 添加创建时间
-      metadata: {
-        cleaned: false,
-        originalSize: html.length,
-        savedAt
-      }
+      source: { url: tab.url, title: tab.title },
+      createdAt: Date.now(),
+      metadata: { sourcePageUrl: tab.url, cleaned: true }
     };
-    
-    // 使用新消息保存
+
     await chrome.runtime.sendMessage({
       type: MESSAGE_TYPES.SAVE_FILE,
       fileEntity
     });
-    
-    await loadPages();
+
+    await loadFiles();
     btn.textContent = '✅ 保存成功';
     setTimeout(() => {
       btn.disabled = false;
       btn.textContent = '📄 只获取HTML';
     }, 1500);
   } catch (error) {
-    logger.error('保存HTML失败:', error);
-    btn.textContent = '❌ 保存失败';
+    logger.error('获取HTML失败:', error);
+    btn.textContent = '❌ 获取失败';
     setTimeout(() => {
       btn.disabled = false;
       btn.textContent = '📄 只获取HTML';
@@ -600,155 +421,149 @@ async function saveRawHtml() {
   }
 }
 
-// 根据类型保存资源（使用新的文件系统 API）
-async function saveResourcesByType(type) {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab) return;
+// 从页面获取所有 JavaScript
+async function saveJSFromPage() {
+  const btn = document.getElementById('saveJsBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 获取中...';
 
-  const results = await chrome.scripting.executeScript({
-    target: { tabId: tab.id },
-    func: () => {
-      const resources = [];
-      const seen = new Set();
-      
-      performance.getEntriesByType('resource').forEach(entry => {
-        if (seen.has(entry.name)) return;
-        seen.add(entry.name);
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: async () => {
+        const scripts = [];
+        for (const script of document.scripts) {
+          if (script.src) {
+            try {
+              const res = await fetch(script.src);
+              const content = await res.text();
+              scripts.push({ content, src: script.src });
+            } catch (e) {
+              console.warn('获取外部脚本失败:', script.src);
+            }
+          } else if (script.textContent) {
+            scripts.push({ content: script.textContent, src: 'inline' });
+          }
+        }
+        return scripts;
+      }
+    });
+
+    const scriptList = results[0].result;
+    if (!scriptList.length) {
+      alert('未找到任何脚本');
+      btn.disabled = false;
+      btn.textContent = '📜 只获取JS';
+      return;
+    }
+
+    const fileEntities = scriptList.map((item, index) => ({
+      name: `${tab.title?.replace(/[\\/:*?"<>|]/g, '_') || 'page'}_script_${index + 1}.js`,
+      content: item.content,
+      type: 'js',
+      source: { url: item.src !== 'inline' ? item.src : tab.url },
+      createdAt: Date.now(),
+      metadata: { sourcePageUrl: tab.url, sourcePageTitle: tab.title }
+    }));
+
+    await chrome.runtime.sendMessage({
+      type: MESSAGE_TYPES.SAVE_FILES,
+      fileEntities
+    });
+
+    await loadFiles();
+    btn.textContent = '✅ 保存成功';
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = '📜 只获取JS';
+    }, 1500);
+  } catch (error) {
+    logger.error('获取JS失败:', error);
+    btn.textContent = '❌ 获取失败';
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = '📜 只获取JS';
+    }, 1500);
+  }
+}
+
+// 从页面获取所有 CSS
+async function saveCSSFromPage() {
+  const btn = document.getElementById('saveCssBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 获取中...';
+
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: async () => {
+        const styles = [];
         
-        let resType = 'other';
-        const url = entry.name.toLowerCase();
-        if (url.endsWith('.css') || url.includes('.css?')) resType = 'css';
-        else if (url.endsWith('.js') || url.includes('.js?')) resType = 'js';
-        else if (url.match(/\.(png|jpg|jpeg|gif|svg|webp|ico)/)) resType = 'image';
-        else if (url.match(/\.(woff|woff2|ttf|eot)/)) resType = 'font';
-        
-        resources.push({
-          id: `res-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          url: entry.name,
-          type: resType,
-          size: entry.transferSize || entry.encodedBodySize || 0,
-          duration: entry.duration,
-          metadata: {
-            filename: entry.name.split('/').pop().split('?')[0] || 'unknown'
+        // 获取内联 style 标签
+        document.querySelectorAll('style').forEach((style, index) => {
+          if (style.textContent) {
+            styles.push({ content: style.textContent, src: `inline-${index}` });
           }
         });
-      });
-      
-      return {
-        resources: resources,
-        pageInfo: {
-          url: location.href,
-          title: document.title
-        }
-      };
-    }
-  });
-
-  const { resources, pageInfo } = results[0].result;
-  
-  let filteredResources = resources;
-  if (type !== 'all') {
-    filteredResources = resources.filter(r => r.type === type);
-  }
-  
-  if (filteredResources.length === 0) {
-    alert(`没有找到任何 ${type === 'all' ? '外部' : type.toUpperCase()} 资源`);
-    return;
-  }
-
-  const overlay = document.getElementById('progressOverlay');
-  const progressFill = document.getElementById('progressFill');
-  const progressText = document.getElementById('progressText');
-  overlay.classList.add('active');
-
-  try {
-    const fileEntities = [];
-    const sourcePageUrl = pageInfo.url;
-    const sourcePageTitle = pageInfo.title;
-    const savedAt = Date.now();
-
-    for (let i = 0; i < filteredResources.length; i++) {
-      const resource = filteredResources[i];
-      
-      progressText.textContent = `正在下载: ${resource.metadata.filename} (${i + 1}/${filteredResources.length})`;
-      progressFill.style.width = `${((i + 1) / filteredResources.length) * 100}%`;
-      
-      try {
-        const content = await fetchResourceContent(resource.url);
         
-        // 创建 FileEntity（包含完整字段）
-        const fileEntity = {
-          id: resource.id, // 保留原有ID
-          name: resource.metadata.filename,
-          content: content,
-          type: resource.type,
-          source: { url: resource.url },
-          createdAt: savedAt, // 添加创建时间
-          metadata: {
-            sourcePageUrl,
-            sourcePageTitle,
-            savedAt,
-            duration: resource.duration,
-            originalSize: resource.size
+        // 获取外部样式表
+        for (const link of document.querySelectorAll('link[rel="stylesheet"]')) {
+          if (link.href) {
+            try {
+              const res = await fetch(link.href);
+              const content = await res.text();
+              styles.push({ content, src: link.href });
+            } catch (e) {
+              console.warn('获取外部样式失败:', link.href);
+            }
           }
-        };
+        }
         
-        fileEntities.push(fileEntity);
-      } catch (error) {
-        logger.error('下载资源失败:', resource.url, error);
+        return styles;
       }
+    });
+
+    const styleList = results[0].result;
+    if (!styleList.length) {
+      alert('未找到任何样式');
+      btn.disabled = false;
+      btn.textContent = '🎨 只获取CSS';
+      return;
     }
 
-    if (fileEntities.length > 0) {
-      // 使用新消息批量保存
-      await chrome.runtime.sendMessage({
-        type: MESSAGE_TYPES.SAVE_FILES,
-        fileEntities
-      });
-      
-      await loadResources();
-      alert(`✅ 成功保存 ${fileEntities.length} 个 ${type === 'all' ? '资源' : type.toUpperCase()} 文件`);
-    } else {
-      alert('没有资源被成功保存');
-    }
+    const fileEntities = styleList.map((item, index) => ({
+      name: `${tab.title?.replace(/[\\/:*?"<>|]/g, '_') || 'page'}_style_${index + 1}.css`,
+      content: item.content,
+      type: 'css',
+      source: { url: item.src.startsWith('inline') ? tab.url : item.src },
+      createdAt: Date.now(),
+      metadata: { sourcePageUrl: tab.url, sourcePageTitle: tab.title }
+    }));
+
+    await chrome.runtime.sendMessage({
+      type: MESSAGE_TYPES.SAVE_FILES,
+      fileEntities
+    });
+
+    await loadFiles();
+    btn.textContent = '✅ 保存成功';
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = '🎨 只获取CSS';
+    }, 1500);
   } catch (error) {
-    logger.error('保存资源失败:', error);
-    alert('保存失败: ' + error.message);
-  } finally {
-    overlay.classList.remove('active');
+    logger.error('获取CSS失败:', error);
+    btn.textContent = '❌ 获取失败';
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = '🎨 只获取CSS';
+    }, 1500);
   }
 }
 
-// 获取资源内容
-async function fetchResourceContent(url) {
-  try {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    
-    const contentType = response.headers.get('content-type') || '';
-    
-    if (contentType.startsWith('image/')) {
-      const blob = await response.blob();
-      return await blobToBase64(blob);
-    }
-    
-    return await response.text();
-  } catch (error) {
-    throw error;
-  }
-}
-
-// Blob转Base64
-function blobToBase64(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}
-
-// 上传选中的页面到当前 AI 平台
+// 上传选中的文件（移除自动发送）
 async function uploadSelected() {
   currentTab = await getCurrentTab();
   await checkPlatformStatus();
@@ -759,12 +574,9 @@ async function uploadSelected() {
     return;
   }
 
-  const selectedPages = getSelectedPages();
-  const selectedResources = getSelectedResources();
-  const totalItems = selectedPages.length + selectedResources.length;
-
-  if (totalItems === 0) {
-    alert('请至少选择一个项目（页面或资源）');
+  const selectedFiles = getSelectedFiles();
+  if (selectedFiles.length === 0) {
+    alert('请至少选择一个文件');
     return;
   }
 
@@ -777,137 +589,86 @@ async function uploadSelected() {
   const progressFill = document.getElementById('progressFill');
   const progressText = document.getElementById('progressText');
   overlay.classList.add('active');
+  progressFill.style.width = '0%';
+  progressText.textContent = '正在上传...';
 
-  let progressInterval;
+  // 构造 items 数组
+  const items = selectedFiles.map(file => {
+    if (file.type === 'html') {
+      return {
+        kind: 'page',
+        data: {
+          id: file.id,
+          title: file.title,
+          url: file.url,
+          savedAt: file.createdAt,
+          size: file.size,
+          html: file.content
+        }
+      };
+    } else {
+      return { kind: 'resource', id: file.id };
+    }
+  });
+
   try {
     chrome.tabs.sendMessage(
       currentTab.id,
-      {
-        type: 'UPLOAD_ITEMS',
-        items: [
-          ...selectedPages.map((p) => ({ kind: 'page', data: p })),
-          ...selectedResources.map((r) => ({ kind: 'resource', id: r.id })),
-        ],
-      },
+      { type: 'UPLOAD_ITEMS', items },
       (response) => {
-        if (progressInterval) clearInterval(progressInterval);
         overlay.classList.remove('active');
-
-        const platformName = currentPlatform === 'deepseek' ? 'DeepSeek' : '通义千问';
         if (chrome.runtime.lastError) {
-          logger.error('发送消息失败:', chrome.runtime.lastError);
           alert(`❌ 上传失败：${chrome.runtime.lastError.message}`);
         } else if (response && response.status === 'ok') {
-          alert(`✅ 成功上传 ${response.count} 个项目到 ${platformName}！`);
+          alert(`✅ 成功上传 ${response.count} 个文件`);
         } else {
-          alert(`❌ 上传失败，请确保 ${platformName} 页面已加载完成`);
+          alert(`❌ 上传失败，请确保页面已加载完成`);
         }
       }
     );
-
-    let progress = 0;
-    progressInterval = setInterval(() => {
-      progress += (100 / totalItems) * 0.5;
-      if (progress >= 90) {
-        clearInterval(progressInterval);
-        progress = 90;
-      }
-      progressFill.style.width = progress + '%';
-      progressText.textContent = `正在上传... ${Math.round(progress)}%`;
-    }, 300);
   } catch (error) {
-    if (progressInterval) clearInterval(progressInterval);
     overlay.classList.remove('active');
-    logger.error('上传失败:', error);
     alert('上传失败: ' + error.message);
   }
 }
 
 // 全选
 function selectAll() {
-  document.querySelectorAll('.page-checkbox').forEach(cb => cb.checked = true);
-  document.querySelectorAll('.resource-checkbox').forEach(cb => cb.checked = true);
+  document.querySelectorAll('.file-checkbox').forEach(cb => cb.checked = true);
+  document.querySelectorAll('.file-item').forEach(item => item.classList.add('selected'));
   updateButtonStates();
 }
 
 // 取消全选
 function deselectAll() {
-  document.querySelectorAll('.page-checkbox').forEach(cb => cb.checked = false);
-  document.querySelectorAll('.resource-checkbox').forEach(cb => cb.checked = false);
+  document.querySelectorAll('.file-checkbox').forEach(cb => cb.checked = false);
+  document.querySelectorAll('.file-item').forEach(item => item.classList.remove('selected'));
   updateButtonStates();
 }
 
+// 打开选中页面的资源管理页面
+async function openPageResourcesForSelected() {
+  const selectedFiles = getSelectedFiles();
+  const selectedPages = selectedFiles.filter(f => f.type === 'html');
+  if (selectedPages.length === 0) {
+    alert('请至少选择一个页面');
+    return;
+  }
 
-
-// 打开资源管理页面
-async function openResourcesManager() {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    const results = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: () => {
-        const resources = [];
-        const seen = new Set();
-        
-        performance.getEntriesByType('resource').forEach(entry => {
-          if (seen.has(entry.name)) return;
-          seen.add(entry.name);
-          
-          let type = 'other';
-          const url = entry.name.toLowerCase();
-          if (url.endsWith('.css') || url.includes('.css?')) type = 'css';
-          else if (url.endsWith('.js') || url.includes('.js?')) type = 'js';
-          else if (url.match(/\.(png|jpg|jpeg|gif|svg|webp|ico)/)) type = 'image';
-          else if (url.match(/\.(woff|woff2|ttf|eot)/)) type = 'font';
-          
-          resources.push({
-            id: `res-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            url: entry.name,
-            type: type,
-            size: entry.transferSize || entry.encodedBodySize || 0,
-            duration: entry.duration,
-            metadata: {
-              filename: entry.name.split('/').pop().split('?')[0] || 'unknown'
-            }
-          });
-        });
-        
-        return {
-          resources: resources,
-          pageInfo: {
-            url: location.href,
-            title: document.title
-          }
-        };
-      }
-    });
-    
-    const { resources, pageInfo } = results[0].result;
-    
-    await chrome.storage.local.set({
-      currentResources: {
-        resources: resources,
-        url: pageInfo.url,
-        title: pageInfo.title
-      }
-    });
-    
-    chrome.tabs.create({ url: chrome.runtime.getURL('resources.html') });
-  } catch (error) {
-    logger.error('获取页面资源失败:', error);
-    alert('获取页面资源失败: ' + error.message);
+  for (const page of selectedPages) {
+    const url = chrome.runtime.getURL('pages/resources/resources.html') +
+                '?url=' + encodeURIComponent(page.url);
+    chrome.tabs.create({ url });
   }
 }
 
 // 绑定所有事件
 function bindEvents() {
   document.getElementById('saveCurrentBtn')?.addEventListener('click', saveCurrentPage);
-  document.getElementById('saveHtmlBtn')?.addEventListener('click', saveRawHtml);
-  document.getElementById('saveJsBtn')?.addEventListener('click', () => saveResourcesByType('js'));
-  document.getElementById('saveCssBtn')?.addEventListener('click', () => saveResourcesByType('css'));
-  document.getElementById('saveAllResourcesBtn')?.addEventListener('click', () => saveResourcesByType('all'));
-  document.getElementById('manageResourcesBtn')?.addEventListener('click', openResourcesManager);
+  document.getElementById('saveHtmlBtn')?.addEventListener('click', saveHTMLFromPage);
+  document.getElementById('saveJsBtn')?.addEventListener('click', saveJSFromPage);
+  document.getElementById('saveCssBtn')?.addEventListener('click', saveCSSFromPage);
+  document.getElementById('manageResourcesBtn')?.addEventListener('click', openPageResourcesForSelected);
   document.getElementById('selectAllBtn')?.addEventListener('click', selectAll);
   document.getElementById('deselectAllBtn')?.addEventListener('click', deselectAll);
   document.getElementById('downloadSelectedBtn')?.addEventListener('click', downloadSelected);
@@ -917,30 +678,12 @@ function bindEvents() {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', async () => {
-  // 应用主题
   await applyTheme();
-  
-  // 始终执行事件绑定，避免按钮无效
   bindEvents();
-
-  // 异步初始化，失败只记录不影响 UI 交互
   try {
     await checkPlatformStatus();
-  } catch (e) {
-    logger.error('checkPlatformStatus error', e);
-  }
-
+  } catch (e) { logger.error(e); }
   try {
-    await loadPages();
-  } catch (e) {
-    logger.error('loadPages error', e);
-    showEmptyState('加载页面失败');
-  }
-
-  try {
-    await loadResources();
-  } catch (e) {
-    logger.error('loadResources error', e);
-    window.showResourceEmptyState('resourceList', '加载资源失败');
-  }
+    await loadFiles();
+  } catch (e) { logger.error(e); }
 });

@@ -93,6 +93,7 @@ const RESOURCE_TYPES = {
 
 // 资源图标映射
 const RESOURCE_ICONS = {
+  html: '📄',
   css: '🎨',
   js: '📜',
   image: '🖼️',

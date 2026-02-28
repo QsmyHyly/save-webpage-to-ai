@@ -83,9 +83,6 @@
 
             if (await uploadFile(blob, fileName)) {
               successCount++;
-              await new Promise(function(r) { setTimeout(r, 1000); });
-              triggerSend();
-              await new Promise(function(r) { setTimeout(r, 800); });
             }
           } catch (error) {
             logger.error('通义千问上传器: 上传出错', error);

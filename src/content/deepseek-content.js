@@ -83,9 +83,6 @@
 
             if (await uploadFile(blob, fileName)) {
               successCount++;
-              await new Promise(function(r) { setTimeout(r, 800); });
-              triggerSend();
-              await new Promise(function(r) { setTimeout(r, 600); });
             }
           } catch (error) {
             logger.error('上传出错:', error);
