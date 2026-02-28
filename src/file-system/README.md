@@ -42,7 +42,6 @@
 #### 静态工厂方法
 - `FileEntity.fromHTML(html, url, title)`: 从 HTML 创建
 - `FileEntity.fromResource(resource)`: 从资源对象创建
-- `FileEntity.fromGrab(content, type, source, selector)`: 从抓取内容创建
 - `FileEntity.fromJSON(obj)`: 从存储对象还原
 
 #### 使用示例
@@ -56,14 +55,6 @@ const cssFile = FileEntity.fromResource({
   content: cssContent,
   fileName: 'style.css'
 });
-
-// 创建抓取的文件
-const grabbedFile = FileEntity.fromGrab(
-  elementContent,
-  'html',
-  { url: sourceUrl },
-  '.my-selector'
-);
 
 // 下载文件
 await htmlFile.download({ filename: 'page.html' });

@@ -123,18 +123,6 @@
       });
     }
 
-    static fromGrab(content, type, source, selector = null) {
-      const name = generateFilename(source, type, selector);
-      
-      return new FileEntity({
-        name,
-        content,
-        type,
-        source,
-        metadata: selector ? { selector } : {}
-      });
-    }
-
     static fromJSON(obj) {
       return new FileEntity(obj);
     }

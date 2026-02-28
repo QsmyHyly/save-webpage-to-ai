@@ -147,7 +147,7 @@ function sanitizeFilename(filename) {
     .substring(0, 200);
 }
 
-function generateFilename(source, type, selector = null) {
+function generateFilename(source, type) {
   let baseName;
   
   if (source.title) {
@@ -164,11 +164,6 @@ function generateFilename(source, type, selector = null) {
   }
   
   const extension = TypeToExtensionMap[type] || '.bin';
-  
-  if (selector) {
-    const selectorHash = btoa(encodeURIComponent(selector).replace(/%([0-9A-F]{2})/g, '$1')).substring(0, 8);
-    return `${baseName}_${selectorHash}${extension}`;
-  }
   
   return `${baseName}${extension}`;
 }

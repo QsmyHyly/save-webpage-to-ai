@@ -25,8 +25,6 @@ const PLATFORM = {
 
 // 存储键名
 const STORAGE_KEYS = {
-  PROFILES: 'profiles',
-  CURRENT_PROFILE_ID: 'currentProfileId',
   CURRENT_RESOURCES: 'currentResources'
 };
 

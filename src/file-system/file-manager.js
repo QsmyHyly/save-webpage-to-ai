@@ -136,10 +136,6 @@
       return FileEntity.fromResource(resource);
     }
 
-    createFileFromGrab(content, type, source, selector = null) {
-      return FileEntity.fromGrab(content, type, source, selector);
-    }
-
     async downloadFile(fileEntity, options = {}) {
       if (!(fileEntity instanceof FileEntity)) {
         throw new Error('fileEntity 必须是 FileEntity 实例');
