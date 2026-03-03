@@ -4,20 +4,27 @@ async function uploadSelected() {
   currentTab = await getCurrentTab();
   await checkPlatformStatus();
 
-  const ready = await isContentScriptReady(currentTab.id);
+  if (!isTargetPage || !currentTab) {
+    alert('请在 DeepSeek 或通义千问官网页面使用此功能');
+    return;
+  }
+
+  let ready = false;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    ready = await isContentScriptReady(currentTab.id);
+    if (ready) break;
+    
+    await injectContentScripts(currentTab.id, currentPlatform);
+  }
+
   if (!ready) {
-    alert('当前 AI 页面尚未完全加载，请刷新后重试。');
+    alert('内容脚本未能自动激活，请尝试刷新页面后重试。');
     return;
   }
 
   const selectedFiles = getSelectedFiles();
   if (selectedFiles.length === 0) {
     alert('请至少选择一个文件');
-    return;
-  }
-
-  if (!isTargetPage || !currentTab) {
-    alert('请在 DeepSeek 或通义千问官网页面使用此功能');
     return;
   }
 
@@ -47,7 +54,6 @@ async function uploadSelected() {
   });
 
   try {
-    // 改为 Promise 包装
     const response = await new Promise((resolve, reject) => {
       chrome.tabs.sendMessage(
         currentTab.id,

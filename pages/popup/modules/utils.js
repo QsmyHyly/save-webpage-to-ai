@@ -42,6 +42,21 @@ const DEFAULT_THEME_CONFIG = {
   customColors: {}
 };
 
+const PLATFORM_SCRIPTS = {
+  deepseek: [
+    'src/utils/logger.js',
+    'src/utils/constants.js',
+    'src/content/content-utils.js',
+    'src/content/deepseek-content.js'
+  ],
+  qianwen: [
+    'src/utils/logger.js',
+    'src/utils/constants.js',
+    'src/content/content-utils.js',
+    'src/content/qianwen-uploader.js'
+  ]
+};
+
 async function applyTheme() {
   try {
     const result = await chrome.storage.sync.get('themeConfig');
@@ -137,6 +152,21 @@ async function isContentScriptReady(tabId, timeout = 1000) {
       }
     });
   });
+}
+
+async function injectContentScripts(tabId, platform) {
+  const files = PLATFORM_SCRIPTS[platform];
+  if (!files) throw new Error('未知平台');
+  
+  for (const file of files) {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: [file]
+    }).catch(err => {
+      console.warn(`注入 ${file} 失败:`, err);
+    });
+  }
+  await new Promise(resolve => setTimeout(resolve, 200));
 }
 
 async function checkPlatformStatus() {
