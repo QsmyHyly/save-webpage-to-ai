@@ -87,6 +87,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function resetTheme() {
+    if (!confirm('确定要重置为默认主题吗？')) return;
+    
     await chrome.storage.sync.set({ themeConfig: { mode: 'light', customColors: {} } });
     themeModeSelect.value = 'light';
     customColorsPanel.style.display = 'none';
