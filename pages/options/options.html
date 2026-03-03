@@ -7,13 +7,13 @@
   <style>
     .container { max-width: 600px; margin: 20px auto; padding: 20px; }
     .note { color: var(--text-muted, #666); font-size: 12px; margin-top: 5px; }
-    button { margin-top: 15px; margin-right: 10px; }
     .section { margin-bottom: 25px; padding-bottom: 20px; border-bottom: 1px solid var(--border-color, #eee); }
     .section h3 { margin-bottom: 10px; }
     .color-row { display: flex; align-items: center; margin-bottom: 8px; }
     .color-row label { width: 80px; }
     .color-row input[type="color"] { width: 60px; height: 30px; border: none; cursor: pointer; }
     #customColorsPanel { margin-top: 15px; padding: 15px; background: var(--bg-light, #f9f9f9); border-radius: 5px; }
+    .btn + .btn { margin-left: 8px; }
   </style>
 </head>
 <body>
@@ -93,8 +93,8 @@
           <input type="color" id="textMuted" value="#999">
         </div>
       </div>
-      <button id="saveTheme">保存主题</button>
-      <button id="resetTheme">重置默认</button>
+      <button id="saveTheme" class="btn btn-primary">保存主题</button>
+      <button id="resetTheme" class="btn btn-secondary">重置默认</button>
     </div>
 
     <div class="section">
@@ -104,7 +104,7 @@
         使用 debugger 模式获取完整页面内容（包括封闭的 Shadow DOM）
       </label>
       <p class="note">注意：启用后保存页面时会弹出调试提示框，需用户允许。</p>
-      <button id="saveDebugger">保存设置</button>
+      <button id="saveDebugger" class="btn btn-primary">保存设置</button>
       <div id="status" style="margin-top:10px; color:var(--success-color, green);"></div>
     </div>
   </div>
