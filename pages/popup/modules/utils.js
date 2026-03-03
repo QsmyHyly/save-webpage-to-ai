@@ -42,6 +42,13 @@ const DEFAULT_THEME_CONFIG = {
   customColors: {}
 };
 
+const DEFAULT_NOTIFICATION_SETTINGS = {
+  success: true,
+  error: true,
+  warning: true,
+  confirm: true
+};
+
 const PLATFORM_SCRIPTS = {
   deepseek: [
     'src/utils/logger.js',
@@ -133,6 +140,33 @@ async function saveTheme(mode, customColors) {
 async function resetTheme() {
   await chrome.storage.sync.set({ themeConfig: DEFAULT_THEME_CONFIG });
   applyThemeToDocument('light', {});
+}
+
+async function getNotificationSettings() {
+  const result = await chrome.storage.sync.get('notificationSettings');
+  return { ...DEFAULT_NOTIFICATION_SETTINGS, ...(result.notificationSettings || {}) };
+}
+
+async function shouldNotify(type) {
+  const settings = await getNotificationSettings();
+  return settings[type] !== false;
+}
+
+async function alertWithSetting(message, type = 'warning') {
+  if (await shouldNotify(type)) {
+    alert(message);
+  } else {
+    console.log(`[${type}] ${message}`);
+  }
+}
+
+async function confirmWithSetting(message, type = 'confirm', defaultValue = false) {
+  if (await shouldNotify(type)) {
+    return confirm(message);
+  } else {
+    console.log(`[${type}] ${message} (默认: ${defaultValue})`);
+    return defaultValue;
+  }
 }
 
 async function getCurrentTab() {

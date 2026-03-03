@@ -218,7 +218,7 @@ async function downloadFile(id) {
 async function downloadSelected() {
   const selected = getSelectedFiles();
   if (selected.length === 0) {
-    alert('请至少选择一个文件');
+    await alertWithSetting('请至少选择一个文件', 'warning');
     return;
   }
   let success = 0, fail = 0;
@@ -231,11 +231,11 @@ async function downloadSelected() {
       logger.error('下载文件失败:', file.name, error);
     }
   }
-  alert(`下载完成：成功 ${success} 个，失败 ${fail} 个`);
+  await alertWithSetting(`下载完成：成功 ${success} 个，失败 ${fail} 个`, 'success');
 }
 
 async function deleteFile(id) {
-  if (!confirm('确定要删除这个文件吗？')) return;
+  if (!await confirmWithSetting('确定要删除这个文件吗？', 'confirm', true)) return;
   try {
     const response = await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.DELETE_FILE, id });
 
@@ -246,17 +246,17 @@ async function deleteFile(id) {
     await loadFiles();
   } catch (error) {
     logger.error('删除文件失败:', error);
-    alert('删除失败，请重试');
+    await alertWithSetting('删除失败，请重试', 'error');
   }
 }
 
 async function deleteSelected() {
   const selected = getSelectedFiles();
   if (selected.length === 0) {
-    alert('请至少选择一个文件');
+    await alertWithSetting('请至少选择一个文件', 'warning');
     return;
   }
-  if (!confirm(`确定要删除选中的 ${selected.length} 个文件吗？`)) return;
+  if (!await confirmWithSetting(`确定要删除选中的 ${selected.length} 个文件吗？`, 'confirm', true)) return;
 
   const ids = selected.map(f => f.id);
   try {
@@ -269,7 +269,7 @@ async function deleteSelected() {
     await loadFiles();
   } catch (error) {
     logger.error('批量删除失败:', error);
-    alert('删除失败，请重试');
+    await alertWithSetting('删除失败，请重试', 'error');
   }
 }
 

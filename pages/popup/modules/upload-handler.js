@@ -5,7 +5,7 @@ async function uploadSelected() {
   await checkPlatformStatus();
 
   if (!isTargetPage || !currentTab) {
-    alert('请在 DeepSeek 或通义千问官网页面使用此功能');
+    await alertWithSetting('请在 DeepSeek 或通义千问官网页面使用此功能', 'warning');
     return;
   }
 
@@ -18,13 +18,13 @@ async function uploadSelected() {
   }
 
   if (!ready) {
-    alert('内容脚本未能自动激活，请尝试刷新页面后重试。');
+    await alertWithSetting('内容脚本未能自动激活，请尝试刷新页面后重试。', 'warning');
     return;
   }
 
   const selectedFiles = getSelectedFiles();
   if (selectedFiles.length === 0) {
-    alert('请至少选择一个文件');
+    await alertWithSetting('请至少选择一个文件', 'warning');
     return;
   }
 
@@ -75,14 +75,14 @@ async function uploadSelected() {
     }
 
     if (response && response.status === 'ok') {
-      alert(`✅ 成功上传 ${response.count} 个文件`);
+      await alertWithSetting(`✅ 成功上传 ${response.count} 个文件`, 'success');
     } else {
-      alert(`❌ 上传失败，请确保页面已加载完成`);
+      await alertWithSetting(`❌ 上传失败，请确保页面已加载完成`, 'error');
     }
   } catch (error) {
     overlay.classList.remove('active');
     logger.error('上传失败:', error);
-    alert('上传失败: ' + error.message);
+    await alertWithSetting('上传失败: ' + error.message, 'error');
   }
 }
 
@@ -90,7 +90,7 @@ async function openPageResourcesForSelected() {
   const selectedFiles = getSelectedFiles();
   const selectedPages = selectedFiles.filter(f => f.type === 'html');
   if (selectedPages.length === 0) {
-    alert('请至少选择一个页面');
+    await alertWithSetting('请至少选择一个页面', 'warning');
     return;
   }
 

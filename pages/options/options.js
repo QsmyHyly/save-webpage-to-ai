@@ -160,5 +160,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(() => status.textContent = '', 1500);
   });
 
+  const notifySuccessCheckbox = document.getElementById('notifySuccess');
+  const notifyErrorCheckbox = document.getElementById('notifyError');
+  const notifyWarningCheckbox = document.getElementById('notifyWarning');
+  const notifyConfirmCheckbox = document.getElementById('notifyConfirm');
+  const saveNotificationsBtn = document.getElementById('saveNotifications');
+
+  async function loadNotificationSettings() {
+    const result = await chrome.storage.sync.get('notificationSettings');
+    const settings = result.notificationSettings || {};
+    notifySuccessCheckbox.checked = settings.success !== false;
+    notifyErrorCheckbox.checked = settings.error !== false;
+    notifyWarningCheckbox.checked = settings.warning !== false;
+    notifyConfirmCheckbox.checked = settings.confirm !== false;
+  }
+
+  async function saveNotificationSettings() {
+    const settings = {
+      success: notifySuccessCheckbox.checked,
+      error: notifyErrorCheckbox.checked,
+      warning: notifyWarningCheckbox.checked,
+      confirm: notifyConfirmCheckbox.checked
+    };
+    await chrome.storage.sync.set({ notificationSettings: settings });
+    status.textContent = '✅ 通知设置已保存';
+    setTimeout(() => status.textContent = '', 1500);
+  }
+
+  saveNotificationsBtn.addEventListener('click', saveNotificationSettings);
+
   await loadTheme();
+  await loadNotificationSettings();
 });

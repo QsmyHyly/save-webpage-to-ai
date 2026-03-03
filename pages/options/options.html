@@ -14,6 +14,8 @@
     .color-row input[type="color"] { width: 60px; height: 30px; border: none; cursor: pointer; }
     #customColorsPanel { margin-top: 15px; padding: 15px; background: var(--bg-light, #f9f9f9); border-radius: 5px; }
     .btn + .btn { margin-left: 8px; }
+    .checkbox-group { margin-top: 10px; }
+    .checkbox-group label { display: block; margin-bottom: 5px; }
   </style>
 </head>
 <body>
@@ -95,6 +97,17 @@
       </div>
       <button id="saveTheme" class="btn btn-primary">保存主题</button>
       <button id="resetTheme" class="btn btn-secondary">重置默认</button>
+    </div>
+
+    <div class="section">
+      <h3>通知设置</h3>
+      <div class="checkbox-group">
+        <label><input type="checkbox" id="notifySuccess" checked> 显示成功通知</label>
+        <label><input type="checkbox" id="notifyError" checked> 显示错误通知</label>
+        <label><input type="checkbox" id="notifyWarning" checked> 显示警告提示</label>
+        <label><input type="checkbox" id="notifyConfirm" checked> 显示确认对话框（关闭后操作将直接执行）</label>
+      </div>
+      <button id="saveNotifications" class="btn btn-primary">保存通知设置</button>
     </div>
 
     <div class="section">
