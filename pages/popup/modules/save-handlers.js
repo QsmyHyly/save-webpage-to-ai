@@ -1,55 +1,190 @@
-// 保存当前页面、只获取HTML/JS/CSS等功能
-
 async function saveCurrentPage() {
   const btn = document.getElementById('saveCurrentBtn');
   btn.disabled = true;
   btn.textContent = '⏳ 保存中...';
   
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    const results = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: () => {
-        return {
-          html: document.documentElement.outerHTML,
-          title: document.title,
-          url: location.href
-        };
-      }
+    const result = await chrome.storage.sync.get('enableDebugger');
+    const useDebugger = result.enableDebugger || false;
+
+    if (useDebugger) {
+      await saveWithDebugger();
+    } else {
+      await saveWithInjection();
+    }
+  } catch (error) {
+    logger.error('保存失败:', error);
+    btn.textContent = '❌ 保存失败';
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = '💾 保存当前页面';
+    }, 1500);
+  }
+}
+
+async function saveWithInjection() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const results = await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    func: () => {
+      return {
+        html: document.documentElement.outerHTML,
+        title: document.title,
+        url: location.href
+      };
+    }
+  });
+
+  const { html, title, url } = results[0].result;
+  const fileEntity = {
+    name: `${title.replace(/[\\/:*?"<>|]/g, '_')}.html`,
+    content: html,
+    type: 'html',
+    source: { url, title },
+    createdAt: Date.now(),
+    metadata: { savedAt: Date.now() }
+  };
+
+  const response = await chrome.runtime.sendMessage({
+    type: MESSAGE_TYPES.SAVE_FILE,
+    fileEntity
+  });
+
+  if (response && response.status === 'error') throw new Error(response.message);
+
+  await loadFiles();
+
+  const btn = document.getElementById('saveCurrentBtn');
+  btn.textContent = '✅ 保存成功';
+  setTimeout(() => {
+    btn.disabled = false;
+    btn.textContent = '💾 保存当前页面';
+  }, 1500);
+}
+
+async function saveWithDebugger() {
+  const btn = document.getElementById('saveCurrentBtn');
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+  function attachDebugger(tabId) {
+    return new Promise((resolve, reject) => {
+      chrome.debugger.attach({ tabId }, "1.3", () => {
+        if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+        else resolve();
+      });
     });
-    
-    const { html, title, url } = results[0].result;
-    
-    const savedAt = Date.now();
+  }
+
+  function detachDebugger(tabId) {
+    return new Promise((resolve) => {
+      chrome.debugger.detach({ tabId }, () => resolve());
+    });
+  }
+
+  function sendCommand(tabId, method, params) {
+    return new Promise((resolve, reject) => {
+      chrome.debugger.sendCommand({ tabId }, method, params, (result) => {
+        if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+        else resolve(result);
+      });
+    });
+  }
+
+  function cdpNodeToHTML(node) {
+    const nodeType = node.nodeType;
+
+    if (nodeType === 9) {
+      let html = '';
+      if (node.children) {
+        for (const child of node.children) {
+          html += cdpNodeToHTML(child);
+        }
+      }
+      return html;
+    }
+
+    if (nodeType === 1) {
+      const tagName = node.nodeName.toLowerCase();
+      let html = '<' + tagName;
+
+      if (node.attributes && node.attributes.length) {
+        for (let i = 0; i < node.attributes.length; i += 2) {
+          const attrName = node.attributes[i];
+          const attrValue = node.attributes[i + 1] || '';
+          const escapedValue = attrValue.replace(/"/g, '&quot;');
+          html += ` ${attrName}="${escapedValue}"`;
+        }
+      }
+      html += '>';
+
+      if (node.children) {
+        for (const child of node.children) {
+          html += cdpNodeToHTML(child);
+        }
+      }
+
+      if (node.shadowRoots) {
+        for (const shadowRoot of node.shadowRoots) {
+          let shadowHtml = '';
+          if (shadowRoot.children) {
+            for (const child of shadowRoot.children) {
+              shadowHtml += cdpNodeToHTML(child);
+            }
+          }
+          html += `<template shadowrootmode="${shadowRoot.mode}">${shadowHtml}</template>`;
+        }
+      }
+
+      html += '</' + tagName + '>';
+      return html;
+    }
+
+    if (nodeType === 3) {
+      return node.nodeValue || '';
+    }
+
+    return '';
+  }
+
+  try {
+    await attachDebugger(tab.id);
+
+    await sendCommand(tab.id, 'DOM.enable', {});
+
+    const { root } = await sendCommand(tab.id, 'DOM.getDocument', { depth: -1, pierce: true });
+
+    const fullHTML = '<!DOCTYPE html>\n' + cdpNodeToHTML(root);
+
+    await detachDebugger(tab.id);
+
+    const title = tab.title || 'page';
+    const url = tab.url;
     const fileEntity = {
-      name: `${title.replace(/[\\/:*?"<>|]/g, '_')}.html`,
-      content: html,
+      name: `${title.replace(/[\\/:*?"<>|]/g, '_')}_full.html`,
+      content: fullHTML,
       type: 'html',
       source: { url, title },
-      createdAt: savedAt,
-      metadata: { savedAt }
+      createdAt: Date.now(),
+      metadata: { capturedWithDebugger: true }
     };
-    
+
     const response = await chrome.runtime.sendMessage({
       type: MESSAGE_TYPES.SAVE_FILE,
       fileEntity
     });
 
-    // 新增：检查错误响应
-    if (response && response.status === 'error') {
-      throw new Error(response.message);
-    }
+    if (response && response.status === 'error') throw new Error(response.message);
 
     await loadFiles();
-    
+
     btn.textContent = '✅ 保存成功';
     setTimeout(() => {
       btn.disabled = false;
       btn.textContent = '💾 保存当前页面';
     }, 1500);
   } catch (error) {
-    logger.error('保存页面失败:', error);
+    logger.error('debugger 模式保存失败:', error);
+    try { await detachDebugger(tab.id); } catch (e) {}
     btn.textContent = '❌ 保存失败';
     setTimeout(() => {
       btn.disabled = false;
@@ -214,12 +349,10 @@ async function saveCSSFromPage() {
       func: () => {
         const styleTags = [];
         
-        // 收集内联样式标签
         document.querySelectorAll('style').forEach(style => {
           styleTags.push(style.outerHTML);
         });
         
-        // 收集外部样式链接
         document.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
           styleTags.push(link.outerHTML);
         });

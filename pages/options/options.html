@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>扩展选项</title>
+  <link rel="stylesheet" href="../common.css">
+  <style>
+    .container { max-width: 600px; margin: 20px auto; padding: 20px; }
+    .note { color: #666; font-size: 12px; margin-top: 5px; }
+    button { margin-top: 15px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>高级设置</h1>
+    <label>
+      <input type="checkbox" id="enableDebugger">
+      使用 debugger 模式获取完整页面内容（包括封闭的 Shadow DOM）
+    </label>
+    <p class="note">注意：启用后保存页面时会弹出调试提示框，需用户允许。</p>
+    <button id="save">保存设置</button>
+    <div id="status" style="margin-top:10px; color:green;"></div>
+  </div>
+  <script src="../../src/utils/logger.js"></script>
+  <script src="../../src/utils/constants.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>
