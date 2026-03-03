@@ -7,7 +7,4 @@
 .vscode/
 .codebuddy/
 
-# 图标资源（暂时忽略，后续更新）
-icons/
-
 generate_icons.py
