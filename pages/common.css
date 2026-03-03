@@ -142,7 +142,7 @@ body {
   font-size: 16px;
 }
 
-.resource-icon.css { background: #e3f2fd; color: #1976d2; }
+.resource-icon.css { background: var(--primary-light); color: #1976d2; }
 .resource-icon.js { background: #fff3e0; color: #f57c00; }
 .resource-icon.image { background: #e8f5e9; color: #388e3c; }
 .resource-icon.font { background: #f3e5f5; color: #7b1fa2; }

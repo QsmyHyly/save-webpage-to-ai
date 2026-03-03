@@ -16,7 +16,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       success: '#28a745',
       info: '#17a2b8',
       gradientStart: '#667eea',
-      gradientEnd: '#764ba2'
+      gradientEnd: '#764ba2',
+      bgColor: '#f5f7fa',
+      bgWhite: '#fff',
+      bgLight: '#fafafa',
+      bgHover: '#f8f9fa',
+      textColor: '#333',
+      textLight: '#666',
+      textLighter: '#888',
+      textMuted: '#999'
     },
     dark: {
       primary: '#3b82f6',
@@ -25,7 +33,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       success: '#10b981',
       info: '#3b82f6',
       gradientStart: '#3b82f6',
-      gradientEnd: '#2563eb'
+      gradientEnd: '#2563eb',
+      bgColor: '#111827',
+      bgWhite: '#1f2937',
+      bgLight: '#374151',
+      bgHover: '#4b5563',
+      textColor: '#f3f4f6',
+      textLight: '#d1d5db',
+      textLighter: '#9ca3af',
+      textMuted: '#6b7280'
     }
   };
 
@@ -39,7 +55,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       success: '--success-color',
       info: '--info-color',
       gradientStart: '--gradient-start',
-      gradientEnd: '--gradient-end'
+      gradientEnd: '--gradient-end',
+      bgColor: '--bg-color',
+      bgWhite: '--bg-white',
+      bgLight: '--bg-light',
+      bgHover: '--bg-hover',
+      textColor: '--text-color',
+      textLight: '--text-light',
+      textLighter: '--text-lighter',
+      textMuted: '--text-muted'
     };
     for (const [key, cssVar] of Object.entries(varMap)) {
       if (colors[key]) root.style.setProperty(cssVar, colors[key]);
@@ -59,8 +83,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('primaryDark').value = customColors.primaryDark || PRESET_THEMES.light.primaryDark;
       document.getElementById('dangerColor').value = customColors.danger || PRESET_THEMES.light.danger;
       document.getElementById('successColor').value = customColors.success || PRESET_THEMES.light.success;
+      document.getElementById('infoColor').value = customColors.info || PRESET_THEMES.light.info;
       document.getElementById('gradientStart').value = customColors.gradientStart || PRESET_THEMES.light.gradientStart;
       document.getElementById('gradientEnd').value = customColors.gradientEnd || PRESET_THEMES.light.gradientEnd;
+      document.getElementById('bgColor').value = customColors.bgColor || PRESET_THEMES.light.bgColor;
+      document.getElementById('bgWhite').value = customColors.bgWhite || PRESET_THEMES.light.bgWhite;
+      document.getElementById('bgLight').value = customColors.bgLight || PRESET_THEMES.light.bgLight;
+      document.getElementById('bgHover').value = customColors.bgHover || PRESET_THEMES.light.bgHover;
+      document.getElementById('textColor').value = customColors.textColor || PRESET_THEMES.light.textColor;
+      document.getElementById('textLight').value = customColors.textLight || PRESET_THEMES.light.textLight;
+      document.getElementById('textLighter').value = customColors.textLighter || PRESET_THEMES.light.textLighter;
+      document.getElementById('textMuted').value = customColors.textMuted || PRESET_THEMES.light.textMuted;
     } else {
       customColorsPanel.style.display = 'none';
     }
@@ -76,8 +109,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         primaryDark: document.getElementById('primaryDark').value,
         danger: document.getElementById('dangerColor').value,
         success: document.getElementById('successColor').value,
+        info: document.getElementById('infoColor').value,
         gradientStart: document.getElementById('gradientStart').value,
-        gradientEnd: document.getElementById('gradientEnd').value
+        gradientEnd: document.getElementById('gradientEnd').value,
+        bgColor: document.getElementById('bgColor').value,
+        bgWhite: document.getElementById('bgWhite').value,
+        bgLight: document.getElementById('bgLight').value,
+        bgHover: document.getElementById('bgHover').value,
+        textColor: document.getElementById('textColor').value,
+        textLight: document.getElementById('textLight').value,
+        textLighter: document.getElementById('textLighter').value,
+        textMuted: document.getElementById('textMuted').value
       };
     }
     await chrome.storage.sync.set({ themeConfig: { mode, customColors } });

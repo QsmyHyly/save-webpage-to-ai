@@ -8,7 +8,15 @@ const PRESET_THEMES = {
     success: '#28a745',
     info: '#17a2b8',
     gradientStart: '#667eea',
-    gradientEnd: '#764ba2'
+    gradientEnd: '#764ba2',
+    bgColor: '#f5f7fa',
+    bgWhite: '#fff',
+    bgLight: '#fafafa',
+    bgHover: '#f8f9fa',
+    textColor: '#333',
+    textLight: '#666',
+    textLighter: '#888',
+    textMuted: '#999'
   },
   dark: {
     primary: '#3b82f6',
@@ -17,7 +25,15 @@ const PRESET_THEMES = {
     success: '#10b981',
     info: '#3b82f6',
     gradientStart: '#3b82f6',
-    gradientEnd: '#2563eb'
+    gradientEnd: '#2563eb',
+    bgColor: '#111827',
+    bgWhite: '#1f2937',
+    bgLight: '#374151',
+    bgHover: '#4b5563',
+    textColor: '#f3f4f6',
+    textLight: '#d1d5db',
+    textLighter: '#9ca3af',
+    textMuted: '#6b7280'
   }
 };
 
@@ -42,7 +58,15 @@ async function applyTheme() {
       success: '--success-color',
       info: '--info-color',
       gradientStart: '--gradient-start',
-      gradientEnd: '--gradient-end'
+      gradientEnd: '--gradient-end',
+      bgColor: '--bg-color',
+      bgWhite: '--bg-white',
+      bgLight: '--bg-light',
+      bgHover: '--bg-hover',
+      textColor: '--text-color',
+      textLight: '--text-light',
+      textLighter: '--text-lighter',
+      textMuted: '--text-muted'
     };
     for (const [key, cssVar] of Object.entries(varMap)) {
       if (colors[key]) root.style.setProperty(cssVar, colors[key]);
@@ -62,7 +86,15 @@ async function applyThemeToDocument(mode, customColors) {
     success: '--success-color',
     info: '--info-color',
     gradientStart: '--gradient-start',
-    gradientEnd: '--gradient-end'
+    gradientEnd: '--gradient-end',
+    bgColor: '--bg-color',
+    bgWhite: '--bg-white',
+    bgLight: '--bg-light',
+    bgHover: '--bg-hover',
+    textColor: '--text-color',
+    textLight: '--text-light',
+    textLighter: '--text-lighter',
+    textMuted: '--text-muted'
   };
   for (const [key, cssVar] of Object.entries(varMap)) {
     if (colors[key]) root.style.setProperty(cssVar, colors[key]);
