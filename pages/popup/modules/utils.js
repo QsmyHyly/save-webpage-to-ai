@@ -1,41 +1,98 @@
 // 工具函数：主题、标签页、平台检测等
 
-const DEFAULT_THEME_COLORS = {
-  primaryColor: '#667eea',
-  primaryDark: '#5568d3',
-  dangerColor: '#dc3545',
-  successColor: '#28a745',
-  infoColor: '#17a2b8',
-  gradientStart: '#667eea',
-  gradientEnd: '#764ba2'
+const PRESET_THEMES = {
+  light: {
+    primary: '#667eea',
+    primaryDark: '#5568d3',
+    danger: '#dc3545',
+    success: '#28a745',
+    info: '#17a2b8',
+    gradientStart: '#667eea',
+    gradientEnd: '#764ba2'
+  },
+  dark: {
+    primary: '#3b82f6',
+    primaryDark: '#2563eb',
+    danger: '#ef4444',
+    success: '#10b981',
+    info: '#3b82f6',
+    gradientStart: '#3b82f6',
+    gradientEnd: '#2563eb'
+  }
 };
 
-// 应用主题到页面
+const DEFAULT_THEME_CONFIG = {
+  mode: 'light',
+  customColors: {}
+};
+
 async function applyTheme() {
   try {
-    const result = await chrome.storage.sync.get('themeColors');
-    const colors = result.themeColors || DEFAULT_THEME_COLORS;
-    
+    const result = await chrome.storage.sync.get('themeConfig');
+    const themeConfig = result.themeConfig || DEFAULT_THEME_CONFIG;
+    const mode = themeConfig.mode || 'light';
+    const customColors = themeConfig.customColors || {};
+    const colors = mode === 'custom' ? customColors : PRESET_THEMES[mode];
+
     const root = document.documentElement;
-    root.style.setProperty('--primary-color', colors.primaryColor);
-    root.style.setProperty('--primary-dark', colors.primaryDark);
-    root.style.setProperty('--danger-color', colors.dangerColor);
-    root.style.setProperty('--success-color', colors.successColor);
-    root.style.setProperty('--info-color', colors.infoColor);
-    root.style.setProperty('--gradient-start', colors.gradientStart);
-    root.style.setProperty('--gradient-end', colors.gradientEnd);
+    const varMap = {
+      primary: '--primary-color',
+      primaryDark: '--primary-dark',
+      danger: '--danger-color',
+      success: '--success-color',
+      info: '--info-color',
+      gradientStart: '--gradient-start',
+      gradientEnd: '--gradient-end'
+    };
+    for (const [key, cssVar] of Object.entries(varMap)) {
+      if (colors[key]) root.style.setProperty(cssVar, colors[key]);
+    }
   } catch (e) {
     logger.error('应用主题失败:', e);
   }
 }
 
-// 获取当前标签页
+async function applyThemeToDocument(mode, customColors) {
+  const colors = mode === 'custom' ? customColors : PRESET_THEMES[mode];
+  const root = document.documentElement;
+  const varMap = {
+    primary: '--primary-color',
+    primaryDark: '--primary-dark',
+    danger: '--danger-color',
+    success: '--success-color',
+    info: '--info-color',
+    gradientStart: '--gradient-start',
+    gradientEnd: '--gradient-end'
+  };
+  for (const [key, cssVar] of Object.entries(varMap)) {
+    if (colors[key]) root.style.setProperty(cssVar, colors[key]);
+  }
+}
+
+async function loadTheme() {
+  const result = await chrome.storage.sync.get('themeConfig');
+  const themeConfig = result.themeConfig || DEFAULT_THEME_CONFIG;
+  const mode = themeConfig.mode || 'light';
+  const customColors = themeConfig.customColors || {};
+  applyThemeToDocument(mode, customColors);
+  return { mode, customColors };
+}
+
+async function saveTheme(mode, customColors) {
+  await chrome.storage.sync.set({ themeConfig: { mode, customColors } });
+  applyThemeToDocument(mode, customColors);
+}
+
+async function resetTheme() {
+  await chrome.storage.sync.set({ themeConfig: DEFAULT_THEME_CONFIG });
+  applyThemeToDocument('light', {});
+}
+
 async function getCurrentTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   return tab;
 }
 
-// 检查内容脚本是否就绪
 async function isContentScriptReady(tabId, timeout = 1000) {
   return new Promise((resolve) => {
     const timer = setTimeout(() => resolve(false), timeout);
@@ -50,7 +107,6 @@ async function isContentScriptReady(tabId, timeout = 1000) {
   });
 }
 
-// 检查当前页面是否是目标 AI 平台
 async function checkPlatformStatus() {
   currentTab = await getCurrentTab();
   const url = currentTab?.url || '';
@@ -69,7 +125,6 @@ async function checkPlatformStatus() {
   updateStatusUI();
 }
 
-// 更新状态 UI
 function updateStatusUI() {
   const indicator = document.getElementById('statusIndicator');
   const statusText = document.getElementById('statusText');
@@ -89,9 +144,7 @@ function updateStatusUI() {
   }
 }
 
-// ==================== debugger 模式工具函数 ====================
-
-function attachDebugger(tabId) {
+async function attachDebugger(tabId) {
   return new Promise((resolve, reject) => {
     chrome.debugger.attach({ tabId }, "1.3", () => {
       if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
@@ -100,13 +153,13 @@ function attachDebugger(tabId) {
   });
 }
 
-function detachDebugger(tabId) {
+async function detachDebugger(tabId) {
   return new Promise((resolve) => {
     chrome.debugger.detach({ tabId }, () => resolve());
   });
 }
 
-function sendDebuggerCommand(tabId, method, params) {
+async function sendDebuggerCommand(tabId, method, params) {
   return new Promise((resolve, reject) => {
     chrome.debugger.sendCommand({ tabId }, method, params, (result) => {
       if (chrome.runtime.lastError) reject(chrome.runtime.lastError);

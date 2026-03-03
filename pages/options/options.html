@@ -7,19 +7,70 @@
   <style>
     .container { max-width: 600px; margin: 20px auto; padding: 20px; }
     .note { color: #666; font-size: 12px; margin-top: 5px; }
-    button { margin-top: 15px; }
+    button { margin-top: 15px; margin-right: 10px; }
+    .section { margin-bottom: 25px; padding-bottom: 20px; border-bottom: 1px solid #eee; }
+    .section h3 { margin-bottom: 10px; }
+    .color-row { display: flex; align-items: center; margin-bottom: 8px; }
+    .color-row label { width: 80px; }
+    .color-row input[type="color"] { width: 60px; height: 30px; border: none; cursor: pointer; }
+    #customColorsPanel { margin-top: 15px; padding: 15px; background: #f9f9f9; border-radius: 5px; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>高级设置</h1>
-    <label>
-      <input type="checkbox" id="enableDebugger">
-      使用 debugger 模式获取完整页面内容（包括封闭的 Shadow DOM）
-    </label>
-    <p class="note">注意：启用后保存页面时会弹出调试提示框，需用户允许。</p>
-    <button id="save">保存设置</button>
-    <div id="status" style="margin-top:10px; color:green;"></div>
+    
+    <div class="section">
+      <h3>主题设置</h3>
+      <div style="margin-bottom: 10px;">
+        <label>主题模式：</label>
+        <select id="themeMode">
+          <option value="light">亮色</option>
+          <option value="dark">深色</option>
+          <option value="custom">自定义</option>
+        </select>
+      </div>
+      <div id="customColorsPanel">
+        <h4>自定义颜色</h4>
+        <div class="color-row">
+          <label>主色：</label>
+          <input type="color" id="primaryColor" value="#667eea">
+        </div>
+        <div class="color-row">
+          <label>主色暗：</label>
+          <input type="color" id="primaryDark" value="#5568d3">
+        </div>
+        <div class="color-row">
+          <label>危险色：</label>
+          <input type="color" id="dangerColor" value="#dc3545">
+        </div>
+        <div class="color-row">
+          <label>成功色：</label>
+          <input type="color" id="successColor" value="#28a745">
+        </div>
+        <div class="color-row">
+          <label>渐变起始：</label>
+          <input type="color" id="gradientStart" value="#667eea">
+        </div>
+        <div class="color-row">
+          <label>渐变结束：</label>
+          <input type="color" id="gradientEnd" value="#764ba2">
+        </div>
+      </div>
+      <button id="saveTheme">保存主题</button>
+      <button id="resetTheme">重置默认</button>
+    </div>
+
+    <div class="section">
+      <h3>Debugger 模式</h3>
+      <label>
+        <input type="checkbox" id="enableDebugger">
+        使用 debugger 模式获取完整页面内容（包括封闭的 Shadow DOM）
+      </label>
+      <p class="note">注意：启用后保存页面时会弹出调试提示框，需用户允许。</p>
+      <button id="saveDebugger">保存设置</button>
+      <div id="status" style="margin-top:10px; color:green;"></div>
+    </div>
   </div>
   <script src="../../src/utils/logger.js"></script>
   <script src="../../src/utils/constants.js"></script>
